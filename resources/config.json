@@ -1,0 +1,60 @@
+﻿{
+  "Host": "paris-stevens.gl.at.ply.gg",
+  "Port": 19547,
+  "GameFont": "sourcesansproblack",
+  "EntityNameFont": "sourcesansproblack",
+  "ChatBubbleFont": "sourcesansproblack",
+  "ActionMsgFont": "sourcesansproblack",
+  "UIFont": "sourcesanspro,8",
+  "ChatLines": 20,
+  "MenuMusic": "intro.ogg",
+  "MenuBackground": [
+    "1.png",
+    "2.png",
+    "3.png",
+    "4.png",
+    "5.png",
+    "6.png",
+    "7.png",
+    "8.png",
+    "9.png"
+  ],
+  "MenuBackgroundDisplayMode": "Default",
+  "MenuBackgroundFrameInterval": 50,
+  "IntroImages": [
+    "splash2.png",
+    "logo.png"
+  ],
+  "UpdateUrl": "https://github.com/Holws-hue/Update-Kabra/",
+  "MouseCursor": "1.png",
+  "MusicFadeTimer": 1500,
+  "FadeDurationMs": 3000.0,
+  "EnableContextMenus": true,
+  "EnableZebraStripedRows": true,
+  "UiSkin": "Intersect2021",
+  "EntityBarDirections": [
+    "StartToEnd",
+    "StartToEnd",
+    "StartToEnd"
+  ],
+  "TypewriterEnabled": true,
+  "TypewriterFullStopCharacters": [
+    ".",
+    "!",
+    "?",
+    ":"
+  ],
+  "TypewriterFullStopDelay": 400,
+  "TypewriterPartDelay": 6,
+  "TypewriterPauseCharacters": [
+    ",",
+    ";",
+    "-"
+  ],
+  "TypewriterPauseDelay": 80,
+  "TypewriterResponseDelay": 600,
+  "TypewriterSoundFrequency": 5,
+  "TypewriterSounds": [
+    "octave-beep-tapped.wav"
+  ]
+}
