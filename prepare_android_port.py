@@ -186,7 +186,13 @@ replace_once(game, 'Globals.Database.LoadPreferences();',
 """#if ANDROID
         Intersect.Client.Core.AndroidBridge.Report("LOADING_PREFERENCES");
 #endif
-        Globals.Database.LoadPreferences();""")
+        Globals.Database.LoadPreferences();
+#if ANDROID
+        // Desktop radialgradient shader is deliberately absent on GLES.
+        // Disable legacy lighting so the light queue cannot grow endlessly.
+        Globals.Database.EnableLighting = false;
+        Intersect.Client.Core.AndroidBridge.Report("ANDROID_LEGACY_LIGHTING_DISABLED");
+#endif""")
 replace_once(game, 'protected override void Initialize()\n    {\n        base.Initialize();',
 """protected override void Initialize()
     {
