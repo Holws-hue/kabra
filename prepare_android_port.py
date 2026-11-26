@@ -71,6 +71,26 @@ replace_once(fs_helper,
 """        using (var temporaryFileStream = OperatingSystem.IsAndroid()
             ? File.Create(temporaryFilePath)
             : File.OpenWrite(temporaryFilePath))""")
+# The optional radial-gradient XNB shader may target DesktopGL and fail
+# to deserialize on Android. A missing shader must not prevent login/map from
+# starting; Intersect's lighting code already checks GetShader() != null.
+shader_loader = root / "Intersect.Client.Core" / "MonoGame" / "File Management" / "MonoContentManager.cs"
+replace_once(shader_loader,
+    '            mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));',
+"""#if ANDROID
+            try
+            {
+                mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));
+            }
+            catch (Exception ex)
+            {
+                Intersect.Client.Core.AndroidBridge.Report(
+                    "ANDROID_OPTIONAL_SHADER_DISABLED: " + shaderName + ": " +
+                    ex.GetType().Name + ": " + ex.Message);
+            }
+#else
+            mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));
+#endif""")
 game = root / "Intersect.Client.Core" / "MonoGame" / "IntersectGame.cs"
 replace_once(game, 'Window.IsBorderless = Context.StartupOptions.BorderlessWindow;',
 """#if !ANDROID
