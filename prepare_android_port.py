@@ -29,6 +29,10 @@ replace_once(proj, '<PackageReference Include="MonoGame.Library.SDL" Version="2.
 replace_once(proj, '<PackageReference Include="Steamworks.NET" Version="20.1.0" />',
 """<PackageReference Include="Steamworks.NET" Version="20.1.0" />
     <PackageReference Include="NVorbis" Version="0.10.5" Condition="'$(KabraAndroidPort)' == 'true'" />""")
+# Make the client's embedded handshake key use the verified Windows V48 public key.
+# Explicit resource name is required by MonoSocket.GetManifestResourceStream.
+replace_once(proj, '<EmbeddedResource Include="$(NetworkHandshakePublicKey)" />',
+"""<EmbeddedResource Include="$(NetworkHandshakePublicKey)" LogicalName="Intersect.Client.network.handshake.bkey.pub" />""")
 replace_once(proj, '<ItemGroup Label="Package Embedded Resources">', """<ItemGroup Label="Package Embedded Resources" Condition="'$(KabraAndroidPort)' != 'true'">""")
 replace_once(proj, '<EmbeddedResource Include="Resources\\MonoGame.Framework.dll.config" />',
 """<EmbeddedResource Include="Resources\\MonoGame.Framework.dll.config" Condition="'$(KabraAndroidPort)' != 'true'" />""")
