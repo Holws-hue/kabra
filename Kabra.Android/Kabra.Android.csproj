@@ -10,9 +10,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="MonoGame.Framework.Android" Version="3.8.1.303" />
     <ProjectReference Include="../engine/Intersect.Client.Core/Intersect.Client.Core.csproj" AdditionalProperties="KabraAndroidPort=true" />
+    <!-- Assets staged by CI from the Kabra repository; config targets loopback, not production. -->
+    <AndroidAsset Include="Assets/resources/**/*">
+      <Link>resources/%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </AndroidAsset>
   </ItemGroup>
 </Project>
