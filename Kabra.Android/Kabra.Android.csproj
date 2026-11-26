@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-android</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ApplicationId>com.kabra.online2d</ApplicationId>
+    <ApplicationTitle>Kabra Online 2D</ApplicationTitle>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <AndroidSupportedAbis>arm64-v8a</AndroidSupportedAbis>
+    <RuntimeIdentifier>android-arm64</RuntimeIdentifier>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MonoGame.Framework.Android" Version="3.8.1.303" />
+    <ProjectReference Include="../engine/Intersect.Client.Core/Intersect.Client.Core.csproj" AdditionalProperties="KabraAndroidPort=true" />
+  </ItemGroup>
+</Project>
