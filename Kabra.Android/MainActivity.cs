@@ -339,6 +339,10 @@ public sealed class MainActivity : AndroidGameActivity
             // Android MonoGame Run returns asynchronously: the game view must remain active.
             if (!Intersect.Client.Core.AndroidBridge.ViewAttached)
                 throw new InvalidOperationException("KABRA_GAME_VIEW_NOT_ATTACHED; revisa diagnostico de arranque");
+            // The game loop runs asynchronously. A successful Game.Run() is
+            // not evidence that a frame was drawn. Surface a readable dialog
+            // if the first frame never renders, rather than an endless black UI.
+            _ = CheckFirstFrameAsync();
         }
         catch (Exception ex)
         {
@@ -346,6 +350,47 @@ public sealed class MainActivity : AndroidGameActivity
             Intersect.Client.Core.AndroidBridge.ReportFatal("LAN_START_FAILED", ex);
             ShowStatus("No se pudo iniciar Kabra: " + ex.GetType().Name + ": " + ex.Message, true);
             SetBusy(false);
+        }
+    }
+
+    private async Task CheckFirstFrameAsync()
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(25));
+            if (IsFinishing || IsDestroyed ||
+                Intersect.Client.Core.AndroidBridge.FirstRenderSeen) return;
+            var lastStatus = "BLACK_SCREEN_WATCHDOG: update=" +
+                Intersect.Client.Core.AndroidBridge.FirstUpdateSeen +
+                ", draw=" + Intersect.Client.Core.AndroidBridge.FirstDrawSeen +
+                ", rendered=" + Intersect.Client.Core.AndroidBridge.FirstRenderSeen;
+            Intersect.Client.Core.AndroidBridge.Report(lastStatus);
+            RunOnUiThread(() =>
+            {
+                try
+                {
+                    if (IsFinishing || IsDestroyed) return;
+                    var dialog = new global::Android.App.AlertDialog.Builder(this);
+                    dialog.SetTitle("Kabra: no se pudo mostrar el juego");
+                    dialog.SetMessage("La vista de Android se inicio pero aun no mostro " +
+                        "un fotograma del RPG.\n" + lastStatus +
+                        "\nNo es un error de la IP LAN. Copia el registro para revisar " +
+                        "donde se detuvo el motor.");
+                    dialog.SetPositiveButton("COPIAR REGISTROS", (_, _) =>
+                        CopyDiagnostic(Intersect.Client.Core.AndroidBridge.GetDiagnosticReport()));
+                    dialog.SetNegativeButton("CERRAR", (_, _) => { });
+                    dialog.Show();
+                }
+                catch (Exception ex)
+                {
+                    Intersect.Client.Core.AndroidBridge.ReportFatal(
+                        "BLACK_SCREEN_DIAGNOSTIC_DIALOG_FAILED", ex);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            Intersect.Client.Core.AndroidBridge.ReportFatal("BLACK_SCREEN_WATCHDOG_FAILED", ex);
         }
     }
 
