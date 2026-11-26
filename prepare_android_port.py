@@ -38,6 +38,23 @@ replace_once(proj, '<EmbeddedResource Include="Resources\\MonoGame.Framework.dll
 """<EmbeddedResource Include="Resources\\MonoGame.Framework.dll.config" Condition="'$(KabraAndroidPort)' != 'true'" />""")
 replace_once(proj, '<EmbeddedResource Include="Resources\\openal32.dll" />',
 """<EmbeddedResource Include="Resources\\openal32.dll" Condition="'$(KabraAndroidPort)' != 'true'" />""")
+# JsonDatabase is in Client.Framework, not Client.Core. Its desktop preference path
+# assumes Assembly.GetEntryAssembly() always exists; on .NET Android that can be null.
+# Use our writable app-private working directory instead, without modifying desktop
+# source, which is cloned temporarily into the Android CI runner.
+json_db = root / "Intersect.Client.Framework" / "Database" / "JsonDatabase.cs"
+replace_once(json_db,
+    '''        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ".intersect",
+            Assembly.GetEntryAssembly().GetName().Name, $"{instance.Host}.{instance.Port}.json");''',
+    '''        // Android's managed entry assembly can be null. Keep preferences in the
+        // app-private game directory selected by the AndroidBridge bootstrap.
+        var preferencesRoot = OperatingSystem.IsAndroid()
+            ? Path.Combine(Environment.CurrentDirectory, "preferences")
+            : Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                ".intersect",
+                Assembly.GetEntryAssembly()?.GetName().Name ?? "Intersect");
+        return Path.Combine(preferencesRoot, $"{instance.Host}.{instance.Port}.json");''')
 game = root / "Intersect.Client.Core" / "MonoGame" / "IntersectGame.cs"
 replace_once(game, 'Window.IsBorderless = Context.StartupOptions.BorderlessWindow;',
 """#if !ANDROID
