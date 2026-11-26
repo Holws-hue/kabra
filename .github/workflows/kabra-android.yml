@@ -112,6 +112,21 @@ jobs:
           sha256sum dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
           echo "ARCH_COUNT=$(find dist -type f -name '*.apk' | wc -l)"
           test "$(find dist -type f -name '*.apk' | wc -l)" -eq 1
+      - name: Verify APK can be parsed by Android package tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk"
+          test -s "$apk"
+          unzip -tqq "$apk"
+          tools_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          "$tools_dir/zipalign" -c -v 4 "$apk"
+          "$tools_dir/apksigner" verify --verbose --min-sdk-version 26 "$apk"
+          "$tools_dir/aapt" dump badging "$apk" | tee dist/kabra-package-info.txt
+          grep -F "package: name='com.kabra.online2d.lanfix'" dist/kabra-package-info.txt
+          grep -F "sdkVersion:'26'" dist/kabra-package-info.txt
+          grep -F "native-code: 'arm64-v8a'" dist/kabra-package-info.txt
+          echo "APK_INSTALL_PACKAGE_VALIDATED_FOR_ANDROID_8_PLUS"
       - name: Upload ONLY verified ARM64 signed test APK
         uses: actions/upload-artifact@v4
         with:
