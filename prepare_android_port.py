@@ -190,6 +190,62 @@ replace_once(game, 'mInitialized = true;',
 #if ANDROID
         Intersect.Client.Core.AndroidBridge.Report("INTERSECT_INITIALIZED");
 #endif""")
+# Black-screen troubleshooting: determine if MonoGame actually starts callbacks,
+# creates the menu and submits a successful first graphical render.
+replace_once(game, '    private bool mInitialized;',
+"""    private bool mInitialized;
+#if ANDROID
+    private bool _androidLoggedFirstUpdate;
+    private bool _androidLoggedFirstDraw;
+    private bool _androidLoggedFirstRender;
+#endif""")
+replace_once(game, '    protected override void LoadContent()\\n    {\\n#if ANDROID\\n        ApplicationContext.Context.Value = Context;\\n#endif',
+"""    protected override void LoadContent()
+    {
+#if ANDROID
+        ApplicationContext.Context.Value = Context;
+        Intersect.Client.Core.AndroidBridge.Report("GAME_LOAD_CONTENT_BEGIN");
+#endif""")
+replace_once(game, '        base.LoadContent();',
+"""        base.LoadContent();
+#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("GAME_LOAD_CONTENT_DONE");
+#endif""")
+replace_once(game, '        Intersect.Client.Core.AndroidBridge.DrainQueuedGameInput();',
+"""        Intersect.Client.Core.AndroidBridge.DrainQueuedGameInput();
+        if (!_androidLoggedFirstUpdate)
+        {
+            _androidLoggedFirstUpdate = true;
+            Intersect.Client.Core.AndroidBridge.Report("GAME_FIRST_UPDATE");
+        }""")
+replace_once(game, '    protected override void Draw(GameTime gameTime)\\n    {\\n#if ANDROID\\n        ApplicationContext.Context.Value = Context;\\n#endif',
+"""    protected override void Draw(GameTime gameTime)
+    {
+#if ANDROID
+        ApplicationContext.Context.Value = Context;
+        if (!_androidLoggedFirstDraw)
+        {
+            _androidLoggedFirstDraw = true;
+            Intersect.Client.Core.AndroidBridge.Report("GAME_FIRST_DRAW");
+        }
+#endif""")
+replace_once(game, '        Main.Start(Context);',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("MAIN_START_BEGIN");
+#endif
+        Main.Start(Context);
+#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("MAIN_START_DONE");
+#endif""")
+replace_once(game, '                    Core.Graphics.Render(gameTime.ElapsedGameTime, gameTime.TotalGameTime);',
+"""                    Core.Graphics.Render(gameTime.ElapsedGameTime, gameTime.TotalGameTime);
+#if ANDROID
+                    if (!_androidLoggedFirstRender)
+                    {
+                        _androidLoggedFirstRender = true;
+                        Intersect.Client.Core.AndroidBridge.Report("GAME_FIRST_RENDER_SUCCESS");
+                    }
+#endif""")
 # Android GameWindow does not expose position or SDL desktop text input.
 renderer = root / "Intersect.Client.Core" / "MonoGame" / "Graphics" / "MonoRenderer.cs"
 replace_once(renderer, 'mGameWindow.Position = new Microsoft.Xna.Framework.Point(',
