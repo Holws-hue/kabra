@@ -80,7 +80,11 @@ replace_once(game, 'using var game = new IntersectGame(context, postStartupActio
                 Intersect.Client.Core.AndroidBridge.AttachGame(game);
                 Intersect.Client.Core.AndroidBridge.Report("STARTING_GAME_RUN");
                 game.Run();
+                // AndroidGamePlatform.BeforeRun starts its worker but returns false.
+                // The Activity was resumed before this late LAN launch, so the
+                // game never received AndroidGameActivity.Resumed. Wake its GL view.
                 Intersect.Client.Core.AndroidBridge.Report("GAME_RUN_RETURNED_ASYNC");
+                Intersect.Client.Core.AndroidBridge.ResumeGameView(game);
             });
 #else
             using var game = new IntersectGame(context, postStartupAction);
