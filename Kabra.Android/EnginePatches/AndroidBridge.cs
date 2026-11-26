@@ -1,4 +1,5 @@
 using Android.Views;
+using System.Collections.Concurrent;
 using Microsoft.Xna.Framework;
 
 namespace Intersect.Client.Core;
@@ -11,6 +12,7 @@ namespace Intersect.Client.Core;
 public static class AndroidBridge
 {
     private static readonly object Sync = new();
+    private static readonly ConcurrentQueue<Action> GameInputQueue = new();
     private static AndroidGameActivity? _activity;
     private static Game? _game;
     private static string? _logPath;
@@ -161,6 +163,63 @@ public static class AndroidBridge
             ViewAttached = true;
         }
         Report("ANDROID_GAME_ATTACH_DONE");
+    }
+
+    /// <summary>
+    /// The Intersect login Gwen input calls MonoInput.OpenKeyboard. Show an
+    /// Android-native text/password dialog; never log the entered credentials.
+    /// The resulting textbox callback is drained by IntersectGame.Update.
+    /// </summary>
+    public static void OpenNativeKeyboard(
+        string title, string existingText, bool password, uint maxLength, Action<string?> inputHandler)
+    {
+        if (inputHandler == null) throw new ArgumentNullException(nameof(inputHandler));
+        AndroidGameActivity activity;
+        lock (Sync)
+            activity = _activity ?? throw new InvalidOperationException("ANDROID_KEYBOARD_ACTIVITY_NOT_READY");
+
+        Report("ANDROID_KEYBOARD_REQUESTED");
+        activity.RunOnUiThread(() =>
+        {
+            try
+            {
+                var edit = new global::Android.Widget.EditText(activity)
+                {
+                    Text = existingText ?? string.Empty,
+                    InputType = password
+                        ? global::Android.Text.InputTypes.ClassText |
+                          global::Android.Text.InputTypes.TextVariationPassword
+                        : global::Android.Text.InputTypes.ClassText
+                };
+                var builder = new global::Android.App.AlertDialog.Builder(activity);
+                builder.SetTitle(title ?? "Ingresar texto");
+                builder.SetView(edit);
+                builder.SetPositiveButton("Aceptar", (_, _) =>
+                {
+                    var value = edit.Text ?? string.Empty;
+                    var length = (int)Math.Min(maxLength, 4096u);
+                    if (value.Length > length) value = value[..length];
+                    GameInputQueue.Enqueue(() => inputHandler(value));
+                    Report("ANDROID_KEYBOARD_SUBMITTED");
+                });
+                builder.SetNegativeButton("Cancelar", (_, _) => Report("ANDROID_KEYBOARD_CANCELLED"));
+                builder.Show();
+                Report("ANDROID_KEYBOARD_VISIBLE");
+            }
+            catch (Exception ex)
+            {
+                Persist("ANDROID_KEYBOARD_FAILED: " + ex);
+            }
+        });
+    }
+
+    public static void DrainQueuedGameInput()
+    {
+        while (GameInputQueue.TryDequeue(out var action))
+        {
+            try { action(); }
+            catch (Exception ex) { Persist("ANDROID_KEYBOARD_INPUT_CALLBACK_FAILED: " + ex); }
+        }
     }
 
     public static void Stop()
