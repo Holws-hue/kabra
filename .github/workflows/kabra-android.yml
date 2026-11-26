@@ -21,9 +21,13 @@ jobs:
       - name: Install .NET 8
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
-      - name: SDK info
-        run: dotnet --info
+          dotnet-version: '8.0.428'
+      - name: Verify pinned SDK before workload installation
+        run: |
+          dotnet --list-sdks
+          dotnet --version
+          test "$(dotnet --version)" = "8.0.428"
+          dotnet --info
       - name: Install Android workload
         run: dotnet workload install android
       - name: Fetch exact Intersect .339 source
@@ -50,6 +54,11 @@ jobs:
           p.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
           print("Production endpoint removed; staging build requires test server configuration")
           PY
+      - name: Verify pinned SDK before restore
+        run: |
+          dotnet --version
+          test "$(dotnet --version)" = "8.0.428"
+          test "$(git -C engine rev-parse HEAD)" = "76885bcd5b12bd47a69aaad44b682fd93957e458"
       - name: Restore real Intersect Android project
         run: dotnet restore Kabra.Android/Kabra.Android.csproj -p:KabraAndroidPort=true -r android-arm64 -v:minimal
       - name: Compile and package Intersect Android APK
