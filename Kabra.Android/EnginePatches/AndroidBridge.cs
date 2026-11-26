@@ -8,12 +8,15 @@ public static class AndroidBridge
     private static AndroidGameActivity? _activity;
     private static readonly object Sync = new();
     private static Action<string>? _status;
+    public static Action<string>? StageChanged { get; set; }
+    public static bool ViewAttached { get; private set; }
+    private static Game? _game;
 
     public static Task StartAsync(AndroidGameActivity activity, string writableGameRoot, Action<string> status)
     {
         if (activity == null) throw new ArgumentNullException(nameof(activity));
         if (status == null) throw new ArgumentNullException(nameof(status));
-        lock (Sync) { _activity = activity; _status = status; }
+        lock (Sync) { _activity = activity; _status = status; ViewAttached = false; _game = null; }
         // The original Bootstrapper.Start() blocks the Activity's UI event handler.
         // Keep Android's UI available to surface exceptions and show startup status.
         return Task.Run(() =>
@@ -42,12 +45,28 @@ public static class AndroidBridge
         lock (Sync) callback = _status;
         global::Android.Util.Log.Info("KabraBootstrap", stage);
         callback?.Invoke(stage);
+        StageChanged?.Invoke(stage);
     }
 
     private static void Report(Action<string> status, string message)
     {
         global::Android.Util.Log.Info("KabraBootstrap", message);
         status(message);
+    }
+
+    public static void Stop()
+    {
+        Game? game;
+        lock (Sync)
+        {
+            game = _game;
+            _game = null;
+            _activity = null;
+            _status = null;
+            ViewAttached = false;
+        }
+        try { game?.Exit(); }
+        catch (Exception ex) { global::Android.Util.Log.Warn("KabraBootstrap", "GAME_EXIT_FAILED: " + ex.Message); }
     }
 
     internal static void AttachGame(Game game)
@@ -72,6 +91,7 @@ public static class AndroidBridge
             throw new TimeoutException("KABRA_ANDROID_ATTACH_UI_TIMEOUT");
         if (attachError != null)
             throw new InvalidOperationException("KABRA_ANDROID_ATTACH_VIEW_FAILED", attachError);
-        global::Android.Util.Log.Info("KabraBootstrap", "ANDROID_GAME_ATTACH_DONE");
+        lock (Sync) { _game = game; ViewAttached = true; }
+        Report("ANDROID_GAME_ATTACH_DONE");
     }
 }
