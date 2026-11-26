@@ -20,6 +20,8 @@ public static class AndroidBridge
     private static string? _sessionMarker;
     private static Action<string>? _status;
     private static global::Android.Widget.TextView? _overlayStatus;
+    private static global::Android.Widget.LinearLayout? _mobileControls;
+    private static bool _mobileControlsDisplayed;
 
 
     public static Action<string>? StageChanged { get; set; }
@@ -311,14 +313,162 @@ public static class AndroidBridge
             widthPx, global::Android.Views.ViewGroup.LayoutParams.WrapContent,
             global::Android.Views.GravityFlags.Top | global::Android.Views.GravityFlags.Right);
         frame.AddView(panel, layout);
+
+        // Compact landscape HUD. It is only shown after the real Intersect
+        // game enters GameStates.InGame, never over the login or selection UI.
+        var mobileControls = CreateMobileControls(activity);
+        frame.AddView(mobileControls,
+            new global::Android.Widget.FrameLayout.LayoutParams(
+                global::Android.Views.ViewGroup.LayoutParams.MatchParent,
+                global::Android.Views.ViewGroup.LayoutParams.WrapContent,
+                global::Android.Views.GravityFlags.Bottom));
+        mobileControls.Visibility = ViewStates.Gone;
         activity.SetContentView(frame);
         lock (Sync)
         {
             _game = game; // Retain while Android runs the asynchronous game loop.
             _overlayStatus = status;
+            _mobileControls = mobileControls;
+            _mobileControlsDisplayed = false;
             ViewAttached = true;
         }
         Report("ANDROID_GAME_ATTACH_DONE");
+    }
+
+    private static int Dp(AndroidGameActivity activity, int dp) =>
+        (int)(dp * (activity.Resources?.DisplayMetrics?.Density ?? 1f));
+
+    private static global::Android.Widget.Button VirtualButton(
+        AndroidGameActivity activity, string label, Microsoft.Xna.Framework.Input.Keys key)
+    {
+        var button = new global::Android.Widget.Button(activity)
+        {
+            Text = label,
+            TextSize = 11,
+            AllCaps = false
+        };
+        button.SetTextColor(global::Android.Graphics.Color.White);
+        button.SetBackgroundColor(global::Android.Graphics.Color.Argb(185, 70, 23, 29));
+        button.Touch += (_, e) =>
+        {
+            if (e.Event == null) return;
+            switch (e.Event.ActionMasked)
+            {
+                case MotionEventActions.Down:
+                case MotionEventActions.PointerDown:
+                    Intersect.Client.MonoGame.Input.AndroidTouchInput.SetVirtualKey(key, true);
+                    break;
+                case MotionEventActions.Up:
+                case MotionEventActions.PointerUp:
+                case MotionEventActions.Cancel:
+                    Intersect.Client.MonoGame.Input.AndroidTouchInput.SetVirtualKey(key, false);
+                    break;
+            }
+            e.Handled = true;
+        };
+        return button;
+    }
+
+    private static global::Android.Widget.LinearLayout CreateMobileControls(AndroidGameActivity activity)
+    {
+        var row = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Horizontal,
+            Gravity = GravityFlags.Bottom
+        };
+        row.SetPadding(Dp(activity, 14), 0, Dp(activity, 14), Dp(activity, 10));
+
+        var nav = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Vertical
+        };
+        var top = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Horizontal
+        };
+        var leftSpace = new global::Android.Widget.TextView(activity);
+        top.AddView(leftSpace, new global::Android.Widget.LinearLayout.LayoutParams(
+            Dp(activity, 48), Dp(activity, 43)));
+        top.AddView(VirtualButton(activity, "▲", Microsoft.Xna.Framework.Input.Keys.Up),
+            new global::Android.Widget.LinearLayout.LayoutParams(Dp(activity, 48), Dp(activity, 43)));
+        nav.AddView(top);
+
+        var bottom = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Horizontal
+        };
+        foreach (var (label, key) in new[] {
+            ("◀", Microsoft.Xna.Framework.Input.Keys.Left),
+            ("▼", Microsoft.Xna.Framework.Input.Keys.Down),
+            ("▶", Microsoft.Xna.Framework.Input.Keys.Right)
+        })
+        {
+            bottom.AddView(VirtualButton(activity, label, key),
+                new global::Android.Widget.LinearLayout.LayoutParams(Dp(activity, 48), Dp(activity, 43)));
+        }
+        nav.AddView(bottom);
+        row.AddView(nav);
+
+        var spacer = new global::Android.Widget.Space(activity);
+        row.AddView(spacer, new global::Android.Widget.LinearLayout.LayoutParams(0, 1, 1f));
+
+        var buttons = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Vertical
+        };
+        var first = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Horizontal
+        };
+        foreach (var (label, key) in new[] {
+            ("ATK", Microsoft.Xna.Framework.Input.Keys.Space),
+            ("ACC", Microsoft.Xna.Framework.Input.Keys.E),
+            ("BOL", Microsoft.Xna.Framework.Input.Keys.I),
+            ("MAP", Microsoft.Xna.Framework.Input.Keys.M)
+        })
+        {
+            first.AddView(VirtualButton(activity, label, key),
+                new global::Android.Widget.LinearLayout.LayoutParams(Dp(activity, 49), Dp(activity, 43)));
+        }
+        buttons.AddView(first);
+        var second = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Horizontal
+        };
+        foreach (var (label, key) in new[] {
+            ("1", Microsoft.Xna.Framework.Input.Keys.D1),
+            ("2", Microsoft.Xna.Framework.Input.Keys.D2),
+            ("3", Microsoft.Xna.Framework.Input.Keys.D3),
+            ("4", Microsoft.Xna.Framework.Input.Keys.D4)
+        })
+        {
+            second.AddView(VirtualButton(activity, label, key),
+                new global::Android.Widget.LinearLayout.LayoutParams(Dp(activity, 49), Dp(activity, 43)));
+        }
+        buttons.AddView(second);
+        row.AddView(buttons);
+        return row;
+    }
+
+    public static void UpdateMobileControls(bool inGame)
+    {
+        AndroidGameActivity? activity;
+        global::Android.Widget.LinearLayout? panel;
+        bool changed;
+        lock (Sync)
+        {
+            activity = _activity;
+            panel = _mobileControls;
+            changed = _mobileControlsDisplayed != inGame;
+            if (changed) _mobileControlsDisplayed = inGame;
+        }
+        if (!changed || activity == null || panel == null) return;
+        if (!inGame) Intersect.Client.MonoGame.Input.AndroidTouchInput.ReleaseAll();
+        activity.RunOnUiThread(() =>
+        {
+            panel.Visibility = inGame ? ViewStates.Visible : ViewStates.Gone;
+        });
+        Report(inGame ? "ANDROID_TOUCH_CONTROLS_GAME_MODE" : "ANDROID_TOUCH_CONTROLS_MENU_MODE");
     }
 
     private static void ShowDiagnostics(AndroidGameActivity activity)
@@ -465,9 +615,13 @@ public static class AndroidBridge
             _activity = null;
             _status = null;
             _overlayStatus = null;
+            _mobileControls = null;
+            _mobileControlsDisplayed = false;
             ViewAttached = false;
         }
         Report("ANDROID_BRIDGE_STOP");
+        Intersect.Client.MonoGame.Input.AndroidTouchInput.ReleaseAll();
+        ReportCleanExit();
         if (game == null || activity == null) return;
         activity.RunOnUiThread(() =>
         {
