@@ -26,7 +26,7 @@ public sealed class MainActivity : AndroidGameActivity
         }
         catch (Exception ex)
         {
-            Android.Util.Log.Error("KabraAndroid", ex.ToString());
+            global::Android.Util.Log.Error("KabraAndroid", ex.ToString());
             throw;
         }
     }
