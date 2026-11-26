@@ -217,6 +217,8 @@ replace_once(game, '        base.LoadContent();',
 #endif""")
 replace_once(game, '        Intersect.Client.Core.AndroidBridge.DrainQueuedGameInput();',
 """        Intersect.Client.Core.AndroidBridge.DrainQueuedGameInput();
+        Intersect.Client.Core.AndroidBridge.UpdateMobileControls(
+            Globals.GameState == GameStates.InGame);
         if (!_androidLoggedFirstUpdate)
         {
             _androidLoggedFirstUpdate = true;
@@ -371,8 +373,12 @@ replace_once(input_cs, 'var mouseState = Mouse.GetState();\n\n            if (mo
 #if ANDROID
             var touches = Microsoft.Xna.Framework.Input.Touch.TouchPanel.GetState();
             var viewport = mMyGame.GraphicsDevice.Viewport;
-            mouseState = AndroidTouchInput.ApplyPointer(mouseState, touches, viewport.Width, viewport.Height);
-            keyboardState = AndroidTouchInput.ApplyMovement(keyboardState, touches, viewport.Width, viewport.Height);
+            mouseState = AndroidTouchInput.ApplyPointer(
+                mouseState, touches, viewport.Width, viewport.Height,
+                Globals.GameState == GameStates.InGame);
+            keyboardState = AndroidTouchInput.ApplyMovement(
+                keyboardState, touches, viewport.Width, viewport.Height,
+                Globals.GameState == GameStates.InGame);
 #endif
 
             if (mouseState.X""")
