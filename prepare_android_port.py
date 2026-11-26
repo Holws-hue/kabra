@@ -51,11 +51,80 @@ replace_once(game, 'Window.AllowAltF4 = false;',
 #endif""")
 replace_once(game, 'if (Steam.SteamDeck)', 'if (!OperatingSystem.IsAndroid() && Steam.SteamDeck)')
 replace_once(game, 'using var game = new IntersectGame(context, postStartupAction);\n            game.Run();',
-"""using var game = new IntersectGame(context, postStartupAction);
-#if ANDROID
+"""#if ANDROID
+            // Android uses GameRunBehavior.Asynchronous: Run() returns while rendering continues.
+            // Never use "using var game" on Android or it gets disposed immediately.
+            Intersect.Client.Core.AndroidBridge.Report("CREATING_INTERSECT_GAME");
+            var game = new IntersectGame(context, postStartupAction);
+            Intersect.Client.Core.AndroidBridge.Report("INTERSECT_GAME_CREATED");
             Intersect.Client.Core.AndroidBridge.AttachGame(game);
+            Intersect.Client.Core.AndroidBridge.Report("STARTING_GAME_RUN");
+            game.Run();
+            Intersect.Client.Core.AndroidBridge.Report("GAME_RUN_RETURNED_ASYNC");
+#else
+            using var game = new IntersectGame(context, postStartupAction);
+            game.Run();
+#endif""")
+# Android's AOT/linker must not remove a platform runner instantiated only via reflection.
+client_context = root / "Intersect.Client.Core" / "Core" / "ClientContext.cs"
+replace_once(client_context,
+    'PlatformRunner = typeof(ClientContext).Assembly.CreateInstanceOf<IPlatformRunner>();',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("CREATING_PLATFORM_RUNNER");
+        PlatformRunner = new Intersect.Client.MonoGame.IntersectGame.MonoGameRunner();
+#else
+        PlatformRunner = typeof(ClientContext).Assembly.CreateInstanceOf<IPlatformRunner>();
+#endif""")
+# Bootstrap stage markers identify where the native start gets stuck.
+bootstrap = root / "Intersect.Client.Core" / "Core" / "Bootstrapper.cs"
+replace_once(bootstrap, 'var clientConfiguration = ClientConfiguration.LoadAndSave();',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("LOADING_CLIENT_CONFIG");
 #endif
-            game.Run();""")
+        var clientConfiguration = ClientConfiguration.LoadAndSave();""")
+replace_once(bootstrap, 'context.Start();',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("STARTING_CLIENT_CONTEXT");
+#endif
+        context.Start();""")
+replace_once(game, 'Strings.Load();',
+"""#if ANDROID
+            Intersect.Client.Core.AndroidBridge.Report("LOADING_STRINGS");
+#endif
+            Strings.Load();""")
+replace_once(game, 'mGraphics = new GraphicsDeviceManager(this)',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("CREATING_GRAPHICS_MANAGER");
+#endif
+        mGraphics = new GraphicsDeviceManager(this)""")
+replace_once(game, 'Globals.ContentManager = new MonoContentManager();',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("CREATING_CONTENT_MANAGER");
+#endif
+        Globals.ContentManager = new MonoContentManager();""")
+replace_once(game, 'Globals.Database.LoadPreferences();',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("LOADING_PREFERENCES");
+#endif
+        Globals.Database.LoadPreferences();""")
+replace_once(game, 'protected override void Initialize()\n    {\n        base.Initialize();',
+"""protected override void Initialize()
+    {
+#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("GAME_INITIALIZE");
+#endif
+        base.Initialize();""")
+replace_once(game, 'private void IntersectInit()\n    {',
+"""private void IntersectInit()
+    {
+#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("INTERSECT_INIT");
+#endif""")
+replace_once(game, 'mInitialized = true;',
+"""mInitialized = true;
+#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("INTERSECT_INITIALIZED");
+#endif""")
 # Android GameWindow does not expose position or SDL desktop text input.
 renderer = root / "Intersect.Client.Core" / "MonoGame" / "Graphics" / "MonoRenderer.cs"
 replace_once(renderer, 'mGameWindow.Position = new Microsoft.Xna.Framework.Point(',
