@@ -52,7 +52,20 @@ replace_once(game, 'using var game = new IntersectGame(context, postStartupActio
             Intersect.Client.Core.AndroidBridge.AttachGame(game);
 #endif
             game.Run();""")
+# Android GameWindow does not expose position or SDL desktop text input.
+renderer = root / "Intersect.Client.Core" / "MonoGame" / "Graphics" / "MonoRenderer.cs"
+replace_once(renderer, 'mGameWindow.Position = new Microsoft.Xna.Framework.Point(',
+"""#if !ANDROID
+            mGameWindow.Position = new Microsoft.Xna.Framework.Point(""")
+replace_once(renderer, 'currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2\n            );',
+"""currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2
+            );
+#endif""")
 input_cs = root / "Intersect.Client.Core" / "MonoGame" / "Input" / "MonoInput.cs"
+replace_once(input_cs, 'myGame.Window.TextInput += Window_TextInput;',
+"""#if !ANDROID
+        myGame.Window.TextInput += Window_TextInput;
+#endif""")
 replace_once(input_cs, 'var mouseState = Mouse.GetState();\n\n            if (mouseState.X',
 """var mouseState = Mouse.GetState();
 #if ANDROID
