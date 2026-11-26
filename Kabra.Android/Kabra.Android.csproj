@@ -7,7 +7,7 @@
     <ApplicationId>com.kabra.online2d.lanfix</ApplicationId>
     <ApplicationVersion>1</ApplicationVersion>
     <ApplicationDisplayVersion>0.48.1-lan</ApplicationDisplayVersion>
-    <ApplicationTitle>Kabra Online 2D</ApplicationTitle>
+    <ApplicationTitle>Kabra 2D LAN FIX</ApplicationTitle>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <AndroidSupportedAbis>arm64-v8a</AndroidSupportedAbis>
     <RuntimeIdentifier>android-arm64</RuntimeIdentifier>
