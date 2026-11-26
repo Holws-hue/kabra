@@ -1,88 +1,67 @@
 using Android.Views;
 using Microsoft.Xna.Framework;
-
 namespace Intersect.Client.Core;
 
-/// <summary>
-/// Android-only entry/lifecycle into the REAL Intersect client.
-/// Game.Run() is asynchronous on Android: never wrap the Game in a method-scoped using.
-/// </summary>
+/// <summary>Android bootstrap for the actual Intersect .339 runner, with traceable stages.</summary>
 public static class AndroidBridge
 {
     private static AndroidGameActivity? _activity;
-    private static Game? _runningGame;
+    private static readonly object Sync = new();
 
-    public static Action<string>? StageChanged { get; set; }
-    public static string LastStage { get; private set; } = "NOT_STARTED";
-    public static bool ViewAttached { get; private set; }
-
-    public static void Report(string stage)
+    public static Task StartAsync(AndroidGameActivity activity, string writableGameRoot, Action<string> status)
     {
-        LastStage = stage;
-        global::Android.Util.Log.Info("KabraBoot", stage);
-        try
+        if (activity == null) throw new ArgumentNullException(nameof(activity));
+        if (status == null) throw new ArgumentNullException(nameof(status));
+        lock (Sync) _activity = activity;
+        // The original Bootstrapper.Start() blocks the Activity's UI event handler.
+        // Keep Android's UI available to surface exceptions and show startup status.
+        return Task.Run(() =>
         {
-            // No credentials, private keys or IPs in this diagnostic log.
-            File.AppendAllText(
-                Path.Combine(Environment.CurrentDirectory, "kabra_android_boot.log"),
-                DateTime.UtcNow.ToString("O") + " " + stage + Environment.NewLine
-            );
-        }
-        catch (Exception error)
-        {
-            global::Android.Util.Log.Warn("KabraBoot", "Unable to write stage log: " + error.GetType().Name);
-        }
-        try { StageChanged?.Invoke(stage); }
-        catch (Exception error)
-        {
-            global::Android.Util.Log.Warn("KabraBoot", "Status callback: " + error.GetType().Name);
-        }
+            try
+            {
+                Report(status, "ANDROID_BOOTSTRAP_BEGIN");
+                Environment.CurrentDirectory = writableGameRoot;
+                Report(status, "ANDROID_BOOTSTRAP_WORKDIR_OK");
+                Bootstrapper.Start();
+                Report(status, "ANDROID_BOOTSTRAP_RETURNED");
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Error("KabraBootstrap", ex.ToString());
+                Report(status, "ANDROID_BOOTSTRAP_FAILED: " + ex.GetType().Name + ": " + ex.Message);
+                throw;
+            }
+        });
     }
 
-    public static void Start(AndroidGameActivity activity, string writableGameRoot)
+    private static void Report(Action<string> status, string message)
     {
-        _activity = activity ?? throw new ArgumentNullException(nameof(activity));
-        Environment.CurrentDirectory = writableGameRoot;
-        ViewAttached = false;
-        Report("BOOTSTRAPPER_START");
-        try
-        {
-            Bootstrapper.Start();
-            Report("BOOTSTRAPPER_RETURNED");
-        }
-        catch (Exception exception)
-        {
-            Report("BOOTSTRAPPER_ERROR_" + exception.GetType().Name);
-            global::Android.Util.Log.Error("KabraBoot", exception.ToString());
-            throw;
-        }
+        global::Android.Util.Log.Info("KabraBootstrap", message);
+        status(message);
     }
 
     internal static void AttachGame(Game game)
     {
-        var activity = _activity ?? throw new InvalidOperationException("KABRA_ANDROID_ACTIVITY_NOT_SET");
-        Report("GETTING_GAME_VIEW");
-        var view = game.Services.GetService(typeof(View)) as View
-            ?? throw new InvalidOperationException("KABRA_ANDROID_GAME_VIEW_MISSING");
-        // Essential for Android's asynchronous Run() loop. Do not dispose it after Run() returns.
-        _runningGame = game;
-        activity.SetContentView(view);
-        ViewAttached = true;
-        Report("GAME_VIEW_ATTACHED");
-    }
-
-    public static void Stop()
-    {
-        try
+        AndroidGameActivity activity;
+        lock (Sync) activity = _activity ?? throw new InvalidOperationException("ANDROID_ACTIVITY_NOT_READY");
+        global::Android.Util.Log.Info("KabraBootstrap", "ANDROID_GAME_ATTACH_BEGIN");
+        // Android MonoGame may not register its View until initialized. This is
+        // an explicit diagnostic, not a fallback dummy view/menu.
+        var view = game.Services.GetService(typeof(View)) as View;
+        if (view == null)
+            throw new InvalidOperationException("KABRA_ANDROID_GAME_VIEW_MISSING: MonoGame view was not initialized");
+        using var done = new ManualResetEventSlim(false);
+        Exception? attachError = null;
+        activity.RunOnUiThread(() =>
         {
-            var game = _runningGame;
-            _runningGame = null;
-            game?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            global::Android.Util.Log.Warn("KabraBoot", "OnDestroy cleanup: " + ex.GetType().Name);
-        }
-        ViewAttached = false;
+            try { activity.SetContentView(view); }
+            catch (Exception ex) { attachError = ex; }
+            finally { done.Set(); }
+        });
+        if (!done.Wait(TimeSpan.FromSeconds(10)))
+            throw new TimeoutException("KABRA_ANDROID_ATTACH_UI_TIMEOUT");
+        if (attachError != null)
+            throw new InvalidOperationException("KABRA_ANDROID_ATTACH_VIEW_FAILED", attachError);
+        global::Android.Util.Log.Info("KabraBootstrap", "ANDROID_GAME_ATTACH_DONE");
     }
 }
