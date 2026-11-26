@@ -253,7 +253,7 @@ replace_once(game, '                    Core.Graphics.Render(gameTime.ElapsedGam
 # Crash diagnostics: MonoGame's Android frame dispatcher can swallow exceptions
 # on its own GL worker, so persist exceptions at the actual game callbacks.
 # Keep all guards Android-only, preserving the pinned Windows client behavior.
-replace_once(game, '        base.Initialize();\\n\\n        if (mUpdater != null)',
+replace_once(game, '        base.Initialize();\n\n        if (mUpdater != null)',
 """#if ANDROID
         try
         {
@@ -261,7 +261,7 @@ replace_once(game, '        base.Initialize();\\n\\n        if (mUpdater != null
         base.Initialize();
 
         if (mUpdater != null)""")
-replace_once(game, '        mGraphics.ApplyChanges();\\n    }\\n\\n    private void IntersectInit()',
+replace_once(game, '        mGraphics.ApplyChanges();\n    }\n\n    private void IntersectInit()',
 """        mGraphics.ApplyChanges();
 #if ANDROID
         }
@@ -274,7 +274,7 @@ replace_once(game, '        mGraphics.ApplyChanges();\\n    }\\n\\n    private v
     }
 
     private void IntersectInit()""")
-replace_once(game, '        if (mUpdater != null)\\n        {\\n            if (mUpdater.CheckUpdaterContentLoaded())',
+replace_once(game, '        if (mUpdater != null)\n        {\n            if (mUpdater.CheckUpdaterContentLoaded())',
 """#if ANDROID
         try
         {
@@ -282,7 +282,7 @@ replace_once(game, '        if (mUpdater != null)\\n        {\\n            if (
         if (mUpdater != null)
         {
             if (mUpdater.CheckUpdaterContentLoaded())""")
-replace_once(game, '        base.Update(gameTime);\\n    }\\n\\n    protected override void LoadContent()',
+replace_once(game, '        base.Update(gameTime);\n    }\n\n    protected override void LoadContent()',
 """        base.Update(gameTime);
 #if ANDROID
         }
@@ -295,7 +295,7 @@ replace_once(game, '        base.Update(gameTime);\\n    }\\n\\n    protected ov
     }
 
     protected override void LoadContent()""")
-replace_once(game, '        base.LoadContent();\\n#if ANDROID\\n        Intersect.Client.Core.AndroidBridge.Report("GAME_LOAD_CONTENT_DONE");\\n#endif',
+replace_once(game, '        base.LoadContent();\n#if ANDROID\n        Intersect.Client.Core.AndroidBridge.Report("GAME_LOAD_CONTENT_DONE");\n#endif',
 """#if ANDROID
         try
         {
@@ -304,7 +304,7 @@ replace_once(game, '        base.LoadContent();\\n#if ANDROID\\n        Intersec
 #if ANDROID
         Intersect.Client.Core.AndroidBridge.Report("GAME_LOAD_CONTENT_DONE");
 #endif""")
-replace_once(game, '            LoadUpdaterContent();\\n        }\\n    }\\n\\n    /// <summary>\\n    ///     This is called when the game should draw itself.',
+replace_once(game, '            LoadUpdaterContent();\n        }\n    }\n\n    /// <summary>\n    ///     This is called when the game should draw itself.',
 """            LoadUpdaterContent();
         }
 #if ANDROID
@@ -325,7 +325,7 @@ replace_once(game, '        GraphicsDevice.BlendState = BlendState.NonPremultipl
         {
 #endif
         GraphicsDevice.BlendState = BlendState.NonPremultiplied;""")
-replace_once(game, '        base.Draw(gameTime);\\n    }\\n\\n    protected override void OnExiting',
+replace_once(game, '        base.Draw(gameTime);\n    }\n\n    protected override void OnExiting',
 """        base.Draw(gameTime);
 #if ANDROID
         }
