@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="128dp"
+    android:height="128dp"
+    android:viewportWidth="128"
+    android:viewportHeight="128">
+    <!-- Native vector icon. Dark crimson, aged gold and a K sword crest. -->
+    <path android:fillColor="#0B070C"
+        android:pathData="M20,0 L108,0 Q128,0 128,20 L128,108 Q128,128 108,128 L20,128 Q0,128 0,108 L0,20 Q0,0 20,0 Z"/>
+    <path android:fillColor="#9C121F"
+        android:pathData="M64,10 L109,25 L104,77 Q98,105 64,119 Q30,105 24,77 L19,25 Z"/>
+    <path android:fillColor="#F0BD60"
+        android:pathData="M64,8 L112,24 L108,78 Q99,105 64,124 Q29,105 20,78 L16,24 Z"/>
+    <path android:fillColor="#470913"
+        android:pathData="M64,15 L105,29 L101,77 Q93,101 64,116 Q35,101 27,77 L23,29 Z"/>
+    <path android:fillColor="#8A101B"
+        android:pathData="M64,18 L99,31 L96,75 Q89,94 64,109 Q39,94 32,75 L29,31 Z"/>
+    <path android:fillColor="#250710"
+        android:pathData="M64,34 L92,38 L92,79 L64,105 L35,81 L35,42 Z"/>
+    <!-- Blade and crossguard -->
+    <path android:fillColor="#FFE8A0"
+        android:pathData="M61,12 L67,12 L67,93 L64,112 L61,93 Z"/>
+    <path android:fillColor="#A9A4A8"
+        android:pathData="M64,31 L67,35 L67,93 L64,112 Z"/>
+    <path android:fillColor="#FFCC63"
+        android:pathData="M38,36 Q49,32 64,34 Q79,32 90,36 L88,43 Q76,39 64,41 Q52,39 40,43 Z"/>
+    <!-- Main Kabra K monogram -->
+    <path android:fillColor="#00000000"
+        android:strokeColor="#3E1010"
+        android:strokeWidth="15"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M45,46 L45,87 M83,45 L54,67 L84,91"/>
+    <path android:fillColor="#00000000"
+        android:strokeColor="#FFC866"
+        android:strokeWidth="10"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M45,46 L45,87 M83,45 L54,67 L84,91"/>
+    <path android:fillColor="#E5222E"
+        android:pathData="M64,24 L73,33 L64,42 L55,33 Z"/>
+    <path android:fillColor="#FF8679"
+        android:pathData="M64,27 L69,32 L64,34 L59,32 Z"/>
+</vector>
