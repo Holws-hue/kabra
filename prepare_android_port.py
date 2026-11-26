@@ -76,6 +76,10 @@ replace_once(input_cs, 'var mouseState = Mouse.GetState();\n\n            if (mo
 #endif
 
             if (mouseState.X""")
+# Android.Resource shadows the entity type in PacketHandler; force Intersect's full name.
+packet_handler = root / "Intersect.Client.Core" / "Networking" / "PacketHandler.cs"
+replace_once(packet_handler, 'var entity = new Resource(packet.EntityId, packet);',
+"""var entity = new Intersect.Client.Entities.Resource(packet.EntityId, packet);""")
 # Map the unmodified core's assembly access via a bridge inside Client.Core.
 for name, dest in [
     ("AndroidBridge.cs", root / "Intersect.Client.Core" / "Core" / "AndroidBridge.cs"),
