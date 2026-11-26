@@ -280,6 +280,31 @@ public static class AndroidBridge
             Report("ANDROID_GAME_RESUME_VIEW_MISSING");
             throw new InvalidOperationException("ANDROID_GAME_RESUME_VIEW_MISSING");
         }
+        // The AndroidGamePlatform subscribes to AndroidGameActivity.Resumed
+        // during Game creation. With this late LAN launch, that event has
+        // already fired, so Platform.IsActive remains false (its default).
+        // The view checks that flag before calling game.Tick(). Set it using
+        // MonoGame's own property setter and fail visibly if API layout differs.
+        if (!game.IsActive)
+        {
+            Report("ANDROID_GAME_PLATFORM_ACTIVATING");
+            var platformField = typeof(Game).GetField("Platform",
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic);
+            var platform = platformField?.GetValue(game) ??
+                throw new InvalidOperationException("MONOGAME_PLATFORM_FIELD_NOT_FOUND");
+            var activeProperty = platform.GetType().GetProperty("IsActive",
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic |
+                System.Reflection.BindingFlags.Instance);
+            var setActive = activeProperty?.GetSetMethod(nonPublic: true) ??
+                throw new InvalidOperationException("MONOGAME_ACTIVE_SETTER_NOT_FOUND");
+            setActive.Invoke(platform, new object[] { true });
+        }
+        if (!game.IsActive)
+            throw new InvalidOperationException("MONOGAME_ACTIVITY_STILL_INACTIVE");
+
+        Report("ANDROID_GAME_PLATFORM_ACTIVE");
         Report("ANDROID_GAME_VIEW_RESUME_BEGIN");
         view.Resume();
         Report("ANDROID_GAME_VIEW_RESUME_SIGNALLED");
