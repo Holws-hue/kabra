@@ -344,12 +344,12 @@ replace_once(game, '        base.Draw(gameTime);\n    }\n\n    protected overrid
 # Window.Position assignment, yet still called Sdl2.GetDisplayBounds(),
 # which requires SDL and can crash when the renderer initializes.
 renderer = root / "Intersect.Client.Core" / "MonoGame" / "Graphics" / "MonoRenderer.cs"
-replace_once(renderer, '        if (fsChanged || initial)\\n        {\\n            var displayBounds = Sdl2.GetDisplayBounds();',
+replace_once(renderer, '        if (fsChanged || initial)\n        {\n            var displayBounds = Sdl2.GetDisplayBounds();',
 """#if !ANDROID
         if (fsChanged || initial)
         {
             var displayBounds = Sdl2.GetDisplayBounds();""")
-replace_once(renderer, '                currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2\\n            );\\n        }\\n\\n        mOldDisplayMode',
+replace_once(renderer, '                currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2\n            );\n        }\n\n        mOldDisplayMode',
 """                currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2
             );
         }
