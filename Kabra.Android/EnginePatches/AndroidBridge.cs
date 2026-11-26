@@ -82,7 +82,13 @@ public static class AndroidBridge
                 Environment.CurrentDirectory = writableGameRoot;
                 Report("ANDROID_BOOTSTRAP_WORKDIR_OK");
                 Bootstrapper.Start();
-                Report("ANDROID_BOOTSTRAP_RETURNED");
+                if (!ViewAttached)
+                {
+                    Report("ANDROID_BOOTSTRAP_RETURNED_WITHOUT_GAME_VIEW");
+                    throw new InvalidOperationException(
+                        "INTERSECT_STARTUP_RETURNED_WITHOUT_GAME_VIEW: inspect prior boot stages");
+                }
+                Report("ANDROID_BOOTSTRAP_RETURNED_GAME_ATTACHED");
             }
             catch (Exception ex)
             {
