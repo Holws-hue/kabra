@@ -262,6 +262,30 @@ public static class AndroidBridge
     }
 
     /// <summary>
+    /// The game is created AFTER Activity.OnResume, when the user submits the LAN
+    /// address. MonoGame's AndroidGamePlatform.BeforeRun starts a worker and
+    /// returns without calling StartRunLoop. Its game-view worker stays dormant
+    /// until Resume() is signalled. The normal Activity.Resumed event already
+    /// happened before Game existed, so explicitly resume this game view once.
+    /// </summary>
+    public static void ResumeGameView(Game game)
+    {
+        if (game == null) throw new ArgumentNullException(nameof(game));
+        if (global::Android.OS.Looper.MyLooper() != global::Android.OS.Looper.MainLooper)
+            throw new InvalidOperationException("ANDROID_GAME_RESUME_WRONG_THREAD");
+
+        var view = game.Services.GetService(typeof(View)) as MonoGameAndroidGameView;
+        if (view == null)
+        {
+            Report("ANDROID_GAME_RESUME_VIEW_MISSING");
+            throw new InvalidOperationException("ANDROID_GAME_RESUME_VIEW_MISSING");
+        }
+        Report("ANDROID_GAME_VIEW_RESUME_BEGIN");
+        view.Resume();
+        Report("ANDROID_GAME_VIEW_RESUME_SIGNALLED");
+    }
+
+    /// <summary>
     /// The Intersect login Gwen input calls MonoInput.OpenKeyboard. Show an
     /// Android-native text/password dialog; never log the entered credentials.
     /// The resulting textbox callback is drained by IntersectGame.Update.
