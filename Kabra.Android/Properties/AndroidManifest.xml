@@ -2,5 +2,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <uses-permission android:name="android.permission.INTERNET" />
   <uses-feature android:glEsVersion="0x00020000" android:required="true" />
-  <application android:label="Kabra Online 2D" android:icon="@drawable/kabra_launcher" android:usesCleartextTraffic="false" />
+  <application android:label="Kabra 2D LAN FIX" android:icon="@drawable/kabra_launcher" android:usesCleartextTraffic="false" />
 </manifest>
