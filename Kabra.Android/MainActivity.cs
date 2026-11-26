@@ -100,15 +100,27 @@ public sealed class MainActivity : AndroidGameActivity
             Orientation = global::Android.Widget.Orientation.Horizontal,
             Gravity = global::Android.Views.GravityFlags.CenterVertical
         };
-        var badge = new global::Android.Widget.TextView(this)
+        var iconId = Resources?.GetIdentifier("kabra_launcher", "drawable", PackageName) ?? 0;
+        if (iconId != 0)
         {
-            Text = "K",
-            TextSize = 32,
-            Gravity = global::Android.Views.GravityFlags.Center
-        };
-        badge.SetTextColor(global::Android.Graphics.Color.Rgb(255, 211, 129));
-        badge.Background = PanelBackground(true);
-        titleRow.AddView(badge, new global::Android.Widget.LinearLayout.LayoutParams(Dp(58), Dp(58)));
+            var logo = new global::Android.Widget.ImageView(this);
+            logo.SetImageResource(iconId);
+            titleRow.AddView(logo,
+                new global::Android.Widget.LinearLayout.LayoutParams(Dp(62), Dp(62)));
+        }
+        else
+        {
+            var badge = new global::Android.Widget.TextView(this)
+            {
+                Text = "K",
+                TextSize = 32,
+                Gravity = global::Android.Views.GravityFlags.Center
+            };
+            badge.SetTextColor(global::Android.Graphics.Color.Rgb(255, 211, 129));
+            badge.Background = PanelBackground(true);
+            titleRow.AddView(badge,
+                new global::Android.Widget.LinearLayout.LayoutParams(Dp(58), Dp(58)));
+        }
 
         var headings = new global::Android.Widget.LinearLayout(this)
         {
@@ -285,6 +297,10 @@ public sealed class MainActivity : AndroidGameActivity
         {
             Directory.CreateDirectory(root);
             Intersect.Client.Core.AndroidBridge.BeginDiagnostics(root);
+            Intersect.Client.Core.AndroidBridge.Report("ANDROID_DEVICE_INFO: " +
+                global::Android.OS.Build.Manufacturer + " " +
+                global::Android.OS.Build.Model + " API=" +
+                global::Android.OS.Build.VERSION.SdkInt);
             Intersect.Client.Core.AndroidBridge.Report("LAN_SETTINGS_VALIDATED");
             // The old client extracted thousands of large files on the UI thread,
             // giving no feedback and appearing completely unresponsive.
