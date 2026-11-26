@@ -78,16 +78,12 @@ shader_loader = root / "Intersect.Client.Core" / "MonoGame" / "File Management" 
 replace_once(shader_loader,
     '            mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));',
 """#if ANDROID
-            try
-            {
-                mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));
-            }
-            catch (Exception ex)
-            {
-                Intersect.Client.Core.AndroidBridge.Report(
-                    "ANDROID_OPTIONAL_SHADER_DISABLED: " + shaderName + ": " +
-                    ex.GetType().Name + ": " + ex.Message);
-            }
+            // These embedded XNB effects were built for the original desktop
+            // client. MonoGame GLES may reject them (or its driver can crash
+            // before a managed exception is raised). Lighting code treats a
+            // missing radialgradient shader as optional and skips that effect.
+            Intersect.Client.Core.AndroidBridge.Report(
+                "ANDROID_DESKTOP_SHADER_SKIPPED: " + shaderName);
 #else
             mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));
 #endif""")
