@@ -13,6 +13,10 @@
     <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Engine patches are compiled only after copying into Intersect.Client.Core -->
+    <Compile Remove="EnginePatches/**/*.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="MonoGame.Framework.Android" Version="3.8.1.303" />
     <ProjectReference Include="../engine/Intersect.Client.Core/Intersect.Client.Core.csproj" AdditionalProperties="KabraAndroidPort=true" />
     <!-- Assets staged by CI from the Kabra repository; config targets loopback, not production. -->
