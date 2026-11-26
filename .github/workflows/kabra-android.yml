@@ -1,0 +1,32 @@
+name: Kabra 2D Intersect 339 Android ARM64 port
+on:
+  push:
+    branches: [kabra-2d-android-port-339]
+    paths:
+      - 'Kabra.Android/**'
+      - 'prepare_android_port.py'
+      - '.github/workflows/kabra-android.yml'
+  workflow_dispatch:
+jobs:
+  android-port:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install Android workload
+        run: dotnet workload install android --skip-manifest-update
+      - name: Clone exact Intersect 339
+        run: |
+          git clone https://github.com/AscensionGameDev/Intersect-Engine.git engine
+          git -C engine checkout 76885bcd5b12bd47a69aaad44b682fd93957e458
+          git -C engine submodule update --init --recursive
+      - name: Apply Android package changes
+        run: python3 prepare_android_port.py engine
+      - name: Restore Android and Intersect dependencies
+        run: dotnet restore Kabra.Android/Kabra.Android.csproj -p:KabraAndroidPort=true -r android-arm64
+      - name: Compile real Intersect project for Android
+        run: dotnet build Kabra.Android/Kabra.Android.csproj -c Release -p:KabraAndroidPort=true --no-restore -v:minimal
+      # Do not upload a non-playable APK as a functional client.
