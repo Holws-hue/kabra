@@ -340,15 +340,30 @@ replace_once(game, '        base.Draw(gameTime);\n    }\n\n    protected overrid
     }
 
     protected override void OnExiting""")
-# Android GameWindow does not expose position or SDL desktop text input.
+# Avoid desktop SDL completely on Android: the previous patch only hid the
+# Window.Position assignment, yet still called Sdl2.GetDisplayBounds(),
+# which requires SDL and can crash when the renderer initializes.
 renderer = root / "Intersect.Client.Core" / "MonoGame" / "Graphics" / "MonoRenderer.cs"
-replace_once(renderer, 'mGameWindow.Position = new Microsoft.Xna.Framework.Point(',
+replace_once(renderer, '        if (fsChanged || initial)\\n        {\\n            var displayBounds = Sdl2.GetDisplayBounds();',
 """#if !ANDROID
-            mGameWindow.Position = new Microsoft.Xna.Framework.Point(""")
-replace_once(renderer, 'currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2\n            );',
-"""currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2
+        if (fsChanged || initial)
+        {
+            var displayBounds = Sdl2.GetDisplayBounds();""")
+replace_once(renderer, '                currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2\\n            );\\n        }\\n\\n        mOldDisplayMode',
+"""                currentDisplayBounds.y + (currentDisplayBounds.h - mScreenHeight) / 2
             );
-#endif""")
+        }
+#endif
+
+        mOldDisplayMode""")
+# On narrow/rotated Android surfaces the desktop 800x600 minimum can produce
+# an empty resolution list, then the original renderer indexes [0].
+replace_once(renderer, '        return _validVideoModes;',
+"""#if ANDROID
+        if (_validVideoModes.Count == 0)
+            _validVideoModes.Add("800x480");
+#endif
+        return _validVideoModes;""")
 input_cs = root / "Intersect.Client.Core" / "MonoGame" / "Input" / "MonoInput.cs"
 # Intersect login and registration invoke the inputHandler overload; desktop
 # Steam Deck keyboard is not available on Android.
