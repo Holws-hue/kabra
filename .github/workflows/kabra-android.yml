@@ -1,32 +1,62 @@
 name: Kabra 2D Intersect 339 Android ARM64 port
 on:
   push:
-    branches: [kabra-2d-android-port-339]
-    paths:
-      - 'Kabra.Android/**'
-      - 'prepare_android_port.py'
-      - '.github/workflows/kabra-android.yml'
+    branches:
+      - kabra-2d-android-port-339
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   android-port:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - name: Checkout Kabra Android branch (do not modify main)
+        uses: actions/checkout@v4
+      - name: Install Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install .NET 8
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: SDK info
+        run: dotnet --info
       - name: Install Android workload
-        run: dotnet workload install android --skip-manifest-update
-      - name: Clone exact Intersect 339
+        run: dotnet workload install android
+      - name: Fetch exact Intersect .339 source
         run: |
           git clone https://github.com/AscensionGameDev/Intersect-Engine.git engine
           git -C engine checkout 76885bcd5b12bd47a69aaad44b682fd93957e458
           git -C engine submodule update --init --recursive
-      - name: Apply Android package changes
+          test "$(git -C engine rev-parse HEAD)" = "76885bcd5b12bd47a69aaad44b682fd93957e458"
+      - name: Apply Android-only source patches
         run: python3 prepare_android_port.py engine
-      - name: Restore Android and Intersect dependencies
-        run: dotnet restore Kabra.Android/Kabra.Android.csproj -p:KabraAndroidPort=true -r android-arm64
-      - name: Compile real Intersect project for Android
-        run: dotnet build Kabra.Android/Kabra.Android.csproj -c Release -p:KabraAndroidPort=true --no-restore -v:minimal
-      # Do not upload a non-playable APK as a functional client.
+      - name: Stage real Kabra resources with test-only network config
+        run: |
+          test -f resources/config.json
+          mkdir -p Kabra.Android/Assets/resources
+          cp -a resources/. Kabra.Android/Assets/resources/
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("Kabra.Android/Assets/resources/config.json")
+          obj = json.loads(p.read_text(encoding="utf-8-sig"))
+          obj["Host"] = "127.0.0.1"
+          obj["Port"] = 1
+          obj["UpdateUrl"] = ""
+          p.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
+          print("Production endpoint removed; staging build requires test server configuration")
+          PY
+      - name: Restore real Intersect Android project
+        run: dotnet restore Kabra.Android/Kabra.Android.csproj -p:KabraAndroidPort=true -r android-arm64 -v:minimal
+      - name: Compile and package Intersect Android APK
+        run: dotnet publish Kabra.Android/Kabra.Android.csproj -c Release -r android-arm64 -p:KabraAndroidPort=true -p:AndroidPackageFormat=apk --no-restore -v:minimal
+      - name: Upload experimental APK only if complete Android publish succeeded
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kabra-2D-Android-339-EXPERIMENTAL-UNTESTED
+          path: Kabra.Android/bin/Release/net8.0-android/**/*.apk
+          if-no-files-found: error
