@@ -2,7 +2,11 @@
   <PropertyGroup>
     <TargetFramework>net8.0-android</TargetFramework>
     <OutputType>Exe</OutputType>
-    <ApplicationId>com.kabra.online2d</ApplicationId>
+    <!-- Separate LAN test package: Android can install it alongside the
+         older app signed with a different ephemeral CI certificate. -->
+    <ApplicationId>com.kabra.online2d.lanfix</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>0.48.1-lan</ApplicationDisplayVersion>
     <ApplicationTitle>Kabra Online 2D</ApplicationTitle>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <AndroidSupportedAbis>arm64-v8a</AndroidSupportedAbis>
