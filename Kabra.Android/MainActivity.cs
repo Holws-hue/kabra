@@ -66,16 +66,14 @@ public sealed class MainActivity : AndroidGameActivity
         {
             Hint = "IPv4 de la PC: 192.168.1.15",
             Text = prefs?.GetString("host", string.Empty) ?? string.Empty,
-            InputType = global::Android.Text.InputTypes.ClassPhone,
-            SingleLine = true
+            InputType = global::Android.Text.InputTypes.ClassPhone
         };
         layout.AddView(_host);
         _port = new global::Android.Widget.EditText(this)
         {
             Hint = "Puerto UDP de la copia V48 (ejemplo: 5400)",
             Text = prefs?.GetString("port", string.Empty) ?? string.Empty,
-            InputType = global::Android.Text.InputTypes.ClassNumber,
-            SingleLine = true
+            InputType = global::Android.Text.InputTypes.ClassNumber
         };
         layout.AddView(_port);
 
