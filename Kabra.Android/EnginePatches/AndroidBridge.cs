@@ -17,6 +17,8 @@ public static class AndroidBridge
     private static Game? _game;
     private static string? _logPath;
     private static Action<string>? _status;
+    private static global::Android.Widget.TextView? _overlayStatus;
+
 
     public static Action<string>? StageChanged { get; set; }
     public static bool ViewAttached { get; private set; }
@@ -54,6 +56,13 @@ public static class AndroidBridge
     public static void Report(string stage)
     {
         Persist(stage);
+        AndroidGameActivity? activity;
+        global::Android.Widget.TextView? label;
+        lock (Sync) { activity = _activity; label = _overlayStatus; }
+        if (activity != null && label != null)
+        {
+            activity.RunOnUiThread(() => label.Text = "KABRA: " + stage);
+        }
         Action<string>? callback;
         lock (Sync) callback = _status;
         try { callback?.Invoke(stage); }
@@ -162,13 +171,94 @@ public static class AndroidBridge
         if (view == null)
             throw new InvalidOperationException("KABRA_ANDROID_GAME_VIEW_MISSING");
 
-        activity.SetContentView(view);
+        // SurfaceView and its diagnostics must remain in the Activity together.
+        // The previous implementation replaced the whole LAN UI, hiding the log button
+        // precisely when a black screen occurred.
+        var frame = new global::Android.Widget.FrameLayout(activity);
+        frame.AddView(view, new global::Android.Widget.FrameLayout.LayoutParams(
+            global::Android.Views.ViewGroup.LayoutParams.MatchParent,
+            global::Android.Views.ViewGroup.LayoutParams.MatchParent));
+
+        var panel = new global::Android.Widget.LinearLayout(activity)
+        {
+            Orientation = global::Android.Widget.Orientation.Vertical
+        };
+        panel.SetBackgroundColor(global::Android.Graphics.Color.Argb(205, 17, 20, 28));
+        panel.SetPadding(10, 6, 10, 4);
+        var status = new global::Android.Widget.TextView(activity)
+        {
+            Text = "KABRA: vista Android creada",
+            TextSize = 11
+        };
+        status.SetTextColor(global::Android.Graphics.Color.White);
+        status.SetMaxLines(2);
+        panel.AddView(status);
+
+        var diagnostics = new global::Android.Widget.Button(activity)
+        {
+            Text = "VER / COPIAR REGISTRO",
+            TextSize = 11
+        };
+        diagnostics.Click += (_, _) => ShowDiagnostics(activity);
+        panel.AddView(diagnostics);
+
+        var density = activity.Resources?.DisplayMetrics?.Density ?? 1f;
+        var widthPx = (int)(265 * density);
+        var layout = new global::Android.Widget.FrameLayout.LayoutParams(
+            widthPx, global::Android.Views.ViewGroup.LayoutParams.WrapContent,
+            global::Android.Views.GravityFlags.Top | global::Android.Views.GravityFlags.Right);
+        frame.AddView(panel, layout);
+        activity.SetContentView(frame);
         lock (Sync)
         {
             _game = game; // Retain while Android runs the asynchronous game loop.
+            _overlayStatus = status;
             ViewAttached = true;
         }
         Report("ANDROID_GAME_ATTACH_DONE");
+    }
+
+    private static void ShowDiagnostics(AndroidGameActivity activity)
+    {
+        try
+        {
+            string? path;
+            lock (Sync) path = _logPath;
+            var root = path == null ? string.Empty : Path.GetDirectoryName(path) ?? string.Empty;
+            var entries = path != null && File.Exists(path)
+                ? File.ReadLines(path).TakeLast(55).ToList()
+                : new List<string> { "No se encontro kabra_android_boot.log." };
+            var logsDir = Path.Combine(root, "logs");
+            if (Directory.Exists(logsDir))
+            {
+                var latestErrorLog = Directory.GetFiles(logsDir, "errors-*.log")
+                    .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
+                if (latestErrorLog != null)
+                {
+                    entries.Add("---- Intersect errors ----");
+                    entries.AddRange(File.ReadLines(latestErrorLog).TakeLast(25));
+                }
+            }
+            var details = string.Join(Environment.NewLine, entries);
+            var builder = new global::Android.App.AlertDialog.Builder(activity);
+            builder.SetTitle("Kabra Android - registro");
+            builder.SetMessage(details);
+            builder.SetPositiveButton("COPIAR", (_, _) =>
+            {
+                var clipboard = activity.GetSystemService(global::Android.Content.Context.ClipboardService)
+                    as global::Android.Content.ClipboardManager;
+                if (clipboard == null) return;
+                clipboard.PrimaryClip = global::Android.Content.ClipData.NewPlainText(
+                    "Kabra Android log", details);
+                global::Android.Util.Log.Info("KabraBootstrap", "Boot report copied to clipboard");
+            });
+            builder.SetNegativeButton("CERRAR", (_, _) => { });
+            builder.Show();
+        }
+        catch (Exception ex)
+        {
+            Persist("ANDROID_DIAGNOSTIC_OVERLAY_FAILED: " + ex);
+        }
     }
 
     /// <summary>
@@ -239,6 +329,7 @@ public static class AndroidBridge
             _game = null;
             _activity = null;
             _status = null;
+            _overlayStatus = null;
             ViewAttached = false;
         }
         Report("ANDROID_BRIDGE_STOP");
