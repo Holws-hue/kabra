@@ -37,6 +37,7 @@ public sealed class MainActivity : AndroidGameActivity
         {
             var detail = args.ExceptionObject?.ToString() ?? "Unknown";
             global::Android.Util.Log.Error("KabraBoot", "Unhandled: " + detail);
+            Intersect.Client.Core.AndroidBridge.Report("ANDROID_UNHANDLED_EXCEPTION: " + detail);
         };
     }
 
@@ -116,6 +117,32 @@ public sealed class MainActivity : AndroidGameActivity
             }
         };
         layout.AddView(diagnostics);
+        var copyLog = new global::Android.Widget.Button(this) { Text = "COPIAR REGISTRO DE ARRANQUE" };
+        copyLog.Click += (_, _) =>
+        {
+            var logPath = Path.Combine(FilesDir?.AbsolutePath ?? string.Empty,
+                "kabra", "kabra_android_boot.log");
+            try
+            {
+                if (!File.Exists(logPath))
+                {
+                    ShowStatus("Aun no hay registro de arranque. Primero toca GUARDAR Y ENTRAR A KABRA.", true);
+                    return;
+                }
+                var clipboard = GetSystemService(ClipboardService)
+                    as global::Android.Content.ClipboardManager;
+                if (clipboard == null)
+                    throw new InvalidOperationException("ANDROID_CLIPBOARD_UNAVAILABLE");
+                clipboard.PrimaryClip = global::Android.Content.ClipData.NewPlainText(
+                    "Kabra Android boot log", File.ReadAllText(logPath));
+                ShowStatus("Registro copiado. Pegalo en el chat para revisar el ultimo error.");
+            }
+            catch (Exception ex)
+            {
+                ShowStatus("Error copiando registro: " + ex.Message, true);
+            }
+        };
+        layout.AddView(copyLog);
         SetContentView(scroll);
     }
 
