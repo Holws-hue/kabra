@@ -7,12 +7,13 @@ public static class AndroidBridge
 {
     private static AndroidGameActivity? _activity;
     private static readonly object Sync = new();
+    private static Action<string>? _status;
 
     public static Task StartAsync(AndroidGameActivity activity, string writableGameRoot, Action<string> status)
     {
         if (activity == null) throw new ArgumentNullException(nameof(activity));
         if (status == null) throw new ArgumentNullException(nameof(status));
-        lock (Sync) _activity = activity;
+        lock (Sync) { _activity = activity; _status = status; }
         // The original Bootstrapper.Start() blocks the Activity's UI event handler.
         // Keep Android's UI available to surface exceptions and show startup status.
         return Task.Run(() =>
@@ -32,6 +33,15 @@ public static class AndroidBridge
                 throw;
             }
         });
+    }
+
+    // Called by the Android-only diagnostic hooks patched into Intersect.
+    public static void Report(string stage)
+    {
+        Action<string>? callback;
+        lock (Sync) callback = _status;
+        global::Android.Util.Log.Info("KabraBootstrap", stage);
+        callback?.Invoke(stage);
     }
 
     private static void Report(Action<string> status, string message)
