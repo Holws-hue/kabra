@@ -148,6 +148,7 @@ replace_once(game, '    protected override void Update(GameTime gameTime)\n    {
     {
 #if ANDROID
         ApplicationContext.Context.Value = Context;
+        Intersect.Client.Core.AndroidBridge.DrainQueuedGameInput();
 #endif""")
 replace_once(game, '    protected override void Draw(GameTime gameTime)\n    {',
 """    protected override void Draw(GameTime gameTime)
@@ -182,6 +183,20 @@ replace_once(renderer, 'currentDisplayBounds.y + (currentDisplayBounds.h - mScre
             );
 #endif""")
 input_cs = root / "Intersect.Client.Core" / "MonoGame" / "Input" / "MonoInput.cs"
+# Intersect login and registration invoke the inputHandler overload; desktop
+# Steam Deck keyboard is not available on Android.
+replace_once(input_cs,
+    '        if (!Steam.SteamDeck)\\n        {\\n            return;\\n        }',
+"""#if ANDROID
+        Intersect.Client.Core.AndroidBridge.OpenNativeKeyboard(
+            description, text, keyboardType == KeyboardType.Password, maxLength, inputHandler);
+        return;
+#else
+        if (!Steam.SteamDeck)
+        {
+            return;
+        }
+#endif""")
 replace_once(input_cs, 'myGame.Window.TextInput += Window_TextInput;',
 """#if !ANDROID
         myGame.Window.TextInput += Window_TextInput;
