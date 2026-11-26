@@ -38,7 +38,9 @@ public sealed class MainActivity : AndroidGameActivity
         Intersect.Client.Core.AndroidBridge.ConfigureDiagnosticStorage(root);
         // MonoGame's default Android mode blocks rendering through the UI looper;
         // allow a selectable separate render thread for Mali GPUs and slow devices.
-        RenderOnUIThread = false;
+        // SurfaceView on the Activity looper is the conservative default for
+        // Mali/Adreno GLES. The worker mode stays available as an alternate.
+        RenderOnUIThread = true;
 
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
@@ -316,12 +318,12 @@ public sealed class MainActivity : AndroidGameActivity
             });
 
             var safeGraphics = _safeGraphics?.Checked ?? true;
-            // Safe: render on MonoGame worker, keep Android UI and diagnostics responsive.
-            // Alternate: legacy MonoGame sends each graphical frame to UI thread.
-            RenderOnUIThread = !safeGraphics;
+            // Default-safe: render on Android's UI looper to avoid GL context
+            // ownership errors on some GLES drivers. Alternate runs on worker.
+            RenderOnUIThread = safeGraphics;
             Intersect.Client.Core.AndroidBridge.Report(safeGraphics
-                ? "ANDROID_RENDER_MODE_WORKER_SAFE"
-                : "ANDROID_RENDER_MODE_UI_ALTERNATE");
+                ? "ANDROID_RENDER_MODE_UI_SAFE"
+                : "ANDROID_RENDER_MODE_WORKER_ALTERNATE");
             GetSharedPreferences(PrefsFile, FileCreationMode.Private)?
                 .Edit()?.PutString("host", host)?.PutString("port", port.ToString())?
                 .PutBoolean("safe_graphics", safeGraphics)?.Apply();
