@@ -250,6 +250,94 @@ replace_once(game, '                    Core.Graphics.Render(gameTime.ElapsedGam
                         Intersect.Client.Core.AndroidBridge.Report("GAME_FIRST_RENDER_SUCCESS");
                     }
 #endif""")
+# Crash diagnostics: MonoGame's Android frame dispatcher can swallow exceptions
+# on its own GL worker, so persist exceptions at the actual game callbacks.
+# Keep all guards Android-only, preserving the pinned Windows client behavior.
+replace_once(game, '        base.Initialize();\\n\\n        if (mUpdater != null)',
+"""#if ANDROID
+        try
+        {
+#endif
+        base.Initialize();
+
+        if (mUpdater != null)""")
+replace_once(game, '        mGraphics.ApplyChanges();\\n    }\\n\\n    private void IntersectInit()',
+"""        mGraphics.ApplyChanges();
+#if ANDROID
+        }
+        catch (Exception ex)
+        {
+            Intersect.Client.Core.AndroidBridge.ReportFatal("GAME_INITIALIZE_FAILED", ex);
+            throw;
+        }
+#endif
+    }
+
+    private void IntersectInit()""")
+replace_once(game, '        if (mUpdater != null)\\n        {\\n            if (mUpdater.CheckUpdaterContentLoaded())',
+"""#if ANDROID
+        try
+        {
+#endif
+        if (mUpdater != null)
+        {
+            if (mUpdater.CheckUpdaterContentLoaded())""")
+replace_once(game, '        base.Update(gameTime);\\n    }\\n\\n    protected override void LoadContent()',
+"""        base.Update(gameTime);
+#if ANDROID
+        }
+        catch (Exception ex)
+        {
+            Intersect.Client.Core.AndroidBridge.ReportFatal("GAME_UPDATE_FAILED", ex);
+            throw;
+        }
+#endif
+    }
+
+    protected override void LoadContent()""")
+replace_once(game, '        base.LoadContent();\\n#if ANDROID\\n        Intersect.Client.Core.AndroidBridge.Report("GAME_LOAD_CONTENT_DONE");\\n#endif',
+"""#if ANDROID
+        try
+        {
+#endif
+        base.LoadContent();
+#if ANDROID
+        Intersect.Client.Core.AndroidBridge.Report("GAME_LOAD_CONTENT_DONE");
+#endif""")
+replace_once(game, '            LoadUpdaterContent();\\n        }\\n    }\\n\\n    /// <summary>\\n    ///     This is called when the game should draw itself.',
+"""            LoadUpdaterContent();
+        }
+#if ANDROID
+        }
+        catch (Exception ex)
+        {
+            Intersect.Client.Core.AndroidBridge.ReportFatal("GAME_LOAD_CONTENT_FAILED", ex);
+            throw;
+        }
+#endif
+    }
+
+    /// <summary>
+    ///     This is called when the game should draw itself.""")
+replace_once(game, '        GraphicsDevice.BlendState = BlendState.NonPremultiplied;',
+"""#if ANDROID
+        try
+        {
+#endif
+        GraphicsDevice.BlendState = BlendState.NonPremultiplied;""")
+replace_once(game, '        base.Draw(gameTime);\\n    }\\n\\n    protected override void OnExiting',
+"""        base.Draw(gameTime);
+#if ANDROID
+        }
+        catch (Exception ex)
+        {
+            Intersect.Client.Core.AndroidBridge.ReportFatal("GAME_DRAW_FAILED", ex);
+            throw;
+        }
+#endif
+    }
+
+    protected override void OnExiting""")
 # Android GameWindow does not expose position or SDL desktop text input.
 renderer = root / "Intersect.Client.Core" / "MonoGame" / "Graphics" / "MonoRenderer.cs"
 replace_once(renderer, 'mGameWindow.Position = new Microsoft.Xna.Framework.Point(',
