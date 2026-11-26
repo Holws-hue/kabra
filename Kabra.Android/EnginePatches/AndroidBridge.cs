@@ -344,8 +344,7 @@ public static class AndroidBridge
         var button = new global::Android.Widget.Button(activity)
         {
             Text = label,
-            TextSize = 11,
-            AllCaps = false
+            TextSize = 11
         };
         button.SetTextColor(global::Android.Graphics.Color.White);
         button.SetBackgroundColor(global::Android.Graphics.Color.Argb(185, 70, 23, 29));
@@ -373,9 +372,9 @@ public static class AndroidBridge
     {
         var row = new global::Android.Widget.LinearLayout(activity)
         {
-            Orientation = global::Android.Widget.Orientation.Horizontal,
-            Gravity = GravityFlags.Bottom
+            Orientation = global::Android.Widget.Orientation.Horizontal
         };
+        row.SetGravity(GravityFlags.Bottom);
         row.SetPadding(Dp(activity, 14), 0, Dp(activity, 14), Dp(activity, 10));
 
         var nav = new global::Android.Widget.LinearLayout(activity)
