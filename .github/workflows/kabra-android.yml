@@ -38,6 +38,18 @@ jobs:
           test "$(git -C engine rev-parse HEAD)" = "76885bcd5b12bd47a69aaad44b682fd93957e458"
       - name: Apply Android-only source patches
         run: python3 prepare_android_port.py engine
+      - name: Verify Windows V48 handshake public key
+        run: |
+          python3 - <<'PY'
+          import base64,hashlib,pathlib
+          source=pathlib.Path("Kabra.Android/Keys/network.handshake.bkey.pub.b64")
+          data=base64.b64decode(source.read_text().strip(),validate=True)
+          actual=hashlib.sha256(data).hexdigest()
+          expected="1517dadfd71a52f29dc18bb30a2dfd649b32f761601b8fbe4f651060ea04ad84"
+          assert len(data)==532 and actual==expected, f"V48_PUBLIC_KEY_MISMATCH: {actual}"
+          pathlib.Path("Kabra.Android/Keys/network.handshake.bkey.pub").write_bytes(data)
+          print("V48 public key verified:",actual)
+          PY
       - name: Stage real Kabra resources with test-only network config
         run: |
           test -f resources/config.json
@@ -48,11 +60,11 @@ jobs:
           from pathlib import Path
           p = Path("Kabra.Android/Assets/resources/config.json")
           obj = json.loads(p.read_text(encoding="utf-8-sig"))
-          obj["Host"] = "127.0.0.1"
-          obj["Port"] = 1
+          obj["Host"] = ""
+          obj["Port"] = 0
           obj["UpdateUrl"] = ""
           p.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
-          print("Production endpoint removed; staging build requires test server configuration")
+          print("No endpoint embedded. LAN screen requires private IPv4 and UDP port before starting Intersect.")
           PY
       - name: Verify pinned SDK before restore
         run: |
@@ -60,12 +72,50 @@ jobs:
           test "$(dotnet --version)" = "8.0.428"
           test "$(git -C engine rev-parse HEAD)" = "76885bcd5b12bd47a69aaad44b682fd93957e458"
       - name: Restore real Intersect Android project
-        run: dotnet restore Kabra.Android/Kabra.Android.csproj -p:KabraAndroidPort=true -r android-arm64 -v:minimal
-      - name: Compile and package Intersect Android APK
-        run: dotnet publish Kabra.Android/Kabra.Android.csproj -c Release -r android-arm64 -p:KabraAndroidPort=true -p:AndroidPackageFormat=apk --no-restore -v:minimal
-      - name: Upload experimental APK only if complete Android publish succeeded
+        run: dotnet restore Kabra.Android/Kabra.Android.csproj -p:KabraAndroidPort=true -p:NetworkHandshakePublicKey="$GITHUB_WORKSPACE/Kabra.Android/Keys/network.handshake.bkey.pub" -r android-arm64 -v:minimal
+      - name: Compile and sign exactly one Android ARM64 test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          # Ephemeral test signing key: not committed, uploaded, or included in APK.
+          # A future build has a different signer; uninstall this test build before updating.
+          PASS="$(openssl rand -hex 16)"
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/kabra-test.jks" -alias kabra-lan-test \
+            -keyalg RSA -keysize 3072 -validity 90 -storepass "$PASS" -keypass "$PASS" \
+            -dname "CN=Kabra LAN Test, O=Kabra, C=AR"
+          dotnet publish Kabra.Android/Kabra.Android.csproj -c Release -r android-arm64 \
+            -p:KabraAndroidPort=true -p:AndroidPackageFormat=apk \
+            -p:AndroidKeyStore=true \
+            -p:AndroidSigningKeyStore="$RUNNER_TEMP/kabra-test.jks" \
+            -p:AndroidSigningKeyAlias=kabra-lan-test \
+            -p:AndroidSigningStorePass="$PASS" \
+            -p:AndroidSigningKeyPass="$PASS" \
+            -p:NetworkHandshakePublicKey="$GITHUB_WORKSPACE/Kabra.Android/Keys/network.handshake.bkey.pub" \
+            --no-restore -v:minimal
+          # Only package a signed APK that passes Android's own signature verifier.
+          mapfile -d '' candidates < <(find Kabra.Android/bin/Release/net8.0-android -type f -name '*.apk' -print0)
+          apktool="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          test -n "$apktool"
+          valid=()
+          for apk in "${candidates[@]}"; do
+            if "$apktool" verify --verbose "$apk" >/dev/null 2>&1; then valid+=("$apk"); fi
+          done
+          if [ "${#valid[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one verified signed APK, found ${#valid[@]}" >&2
+            printf '%s\\n' "${valid[@]}"
+            exit 1
+          fi
+          cp "${valid[0]}" dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          "$apktool" verify --verbose --print-certs dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          echo "SIGNED_APK_BYTES=$(stat -c%s dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk)"
+          sha256sum dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          echo "ARCH_COUNT=$(find dist -type f -name '*.apk' | wc -l)"
+          test "$(find dist -type f -name '*.apk' | wc -l)" -eq 1
+      - name: Upload ONLY verified ARM64 signed test APK
         uses: actions/upload-artifact@v4
         with:
-          name: Kabra-2D-Android-339-EXPERIMENTAL-UNTESTED
-          path: Kabra.Android/bin/Release/net8.0-android/**/*.apk
+          name: Kabra-Online-2D-V48-LAN-ARM64-SIGNED-TEST
+          path: dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          compression-level: 0
           if-no-files-found: error
