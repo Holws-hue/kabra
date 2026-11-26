@@ -55,6 +55,31 @@ replace_once(json_db,
                 ".intersect",
                 Assembly.GetEntryAssembly()?.GetName().Name ?? "Intersect");
         return Path.Combine(preferencesRoot, $"{instance.Host}.{instance.Port}.json");''')
+# The shader cache helper uses Assembly.GetEntryAssembly().GetName().Name,
+# which is null inside Android-managed application hosts. Store shader XNB files
+# in the app-private working root; preserve the stock Windows implementation.
+fs_helper = root / "Framework" / "Intersect.Framework.Core" / "IO" / "Files" / "FileSystemHelper.cs"
+replace_once(fs_helper,
+    '        var temporaryDirectoryPath = Path.Combine(Path.GetTempPath(), Assembly.GetEntryAssembly().GetName().Name);',
+"""#if ANDROID
+        if (stream == null)
+            throw new FileNotFoundException("KABRA_SHADER_RESOURCE_NOT_FOUND: " + name, name);
+        var temporaryDirectoryPath = Path.Combine(Environment.CurrentDirectory,
+            "cache", "shaders");
+#else
+        var temporaryDirectoryPath = Path.Combine(Path.GetTempPath(), Assembly.GetEntryAssembly().GetName().Name);
+#endif""")
+# On Android, overwrite the complete shader XNB (rather than retaining
+# trailing bytes if a previous temp extraction was interrupted).
+replace_once(fs_helper,
+    '        using (var temporaryFileStream = File.OpenWrite(temporaryFilePath))',
+"""        using (var temporaryFileStream =
+#if ANDROID
+            File.Create(temporaryFilePath)
+#else
+            File.OpenWrite(temporaryFilePath)
+#endif
+        )""")
 game = root / "Intersect.Client.Core" / "MonoGame" / "IntersectGame.cs"
 replace_once(game, 'Window.IsBorderless = Context.StartupOptions.BorderlessWindow;',
 """#if !ANDROID
