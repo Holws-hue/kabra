@@ -52,15 +52,19 @@ replace_once(game, 'Window.AllowAltF4 = false;',
 replace_once(game, 'if (Steam.SteamDeck)', 'if (!OperatingSystem.IsAndroid() && Steam.SteamDeck)')
 replace_once(game, 'using var game = new IntersectGame(context, postStartupAction);\n            game.Run();',
 """#if ANDROID
-            // Android uses GameRunBehavior.Asynchronous: Run() returns while rendering continues.
-            // Never use "using var game" on Android or it gets disposed immediately.
-            Intersect.Client.Core.AndroidBridge.Report("CREATING_INTERSECT_GAME");
-            var game = new IntersectGame(context, postStartupAction);
-            Intersect.Client.Core.AndroidBridge.Report("INTERSECT_GAME_CREATED");
-            Intersect.Client.Core.AndroidBridge.AttachGame(game);
-            Intersect.Client.Core.AndroidBridge.Report("STARTING_GAME_RUN");
-            game.Run();
-            Intersect.Client.Core.AndroidBridge.Report("GAME_RUN_RETURNED_ASYNC");
+            // Android MonoGame requires the Activity UI thread for Game constructor,
+            // View binding and Game.Run. Bootstrapper itself may start on a worker.
+            // Android Game.Run is asynchronous: retain the Game through AndroidBridge.
+            Intersect.Client.Core.AndroidBridge.RunGameOnUiThread(() =>
+            {
+                Intersect.Client.Core.AndroidBridge.Report("CREATING_INTERSECT_GAME");
+                var game = new IntersectGame(context, postStartupAction);
+                Intersect.Client.Core.AndroidBridge.Report("INTERSECT_GAME_CREATED");
+                Intersect.Client.Core.AndroidBridge.AttachGame(game);
+                Intersect.Client.Core.AndroidBridge.Report("STARTING_GAME_RUN");
+                game.Run();
+                Intersect.Client.Core.AndroidBridge.Report("GAME_RUN_RETURNED_ASYNC");
+            });
 #else
             using var game = new IntersectGame(context, postStartupAction);
             game.Run();
