@@ -14,7 +14,7 @@ namespace Kabra.Android;
 /// LAN-only pre-login screen. Never contacts a production endpoint.
 /// Assets are extracted asynchronously so users see progress instead of a frozen button.
 /// </summary>
-[Activity(Label = "Kabra 2D LAN FIX", MainLauncher = true,
+[Activity(Label = "Kabra 2D ShaderFix", MainLauncher = true,
     ScreenOrientation = ScreenOrientation.Landscape,
     ConfigurationChanges = ConfigChanges.Keyboard | ConfigChanges.KeyboardHidden |
                            ConfigChanges.Orientation | ConfigChanges.ScreenSize)]
