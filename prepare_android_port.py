@@ -199,7 +199,7 @@ replace_once(game, '    private bool mInitialized;',
     private bool _androidLoggedFirstDraw;
     private bool _androidLoggedFirstRender;
 #endif""")
-replace_once(game, '    protected override void LoadContent()\\n    {\\n#if ANDROID\\n        ApplicationContext.Context.Value = Context;\\n#endif',
+replace_once(game, '    protected override void LoadContent()\n    {\n#if ANDROID\n        ApplicationContext.Context.Value = Context;\n#endif',
 """    protected override void LoadContent()
     {
 #if ANDROID
@@ -218,7 +218,7 @@ replace_once(game, '        Intersect.Client.Core.AndroidBridge.DrainQueuedGameI
             _androidLoggedFirstUpdate = true;
             Intersect.Client.Core.AndroidBridge.Report("GAME_FIRST_UPDATE");
         }""")
-replace_once(game, '    protected override void Draw(GameTime gameTime)\\n    {\\n#if ANDROID\\n        ApplicationContext.Context.Value = Context;\\n#endif',
+replace_once(game, '    protected override void Draw(GameTime gameTime)\n    {\n#if ANDROID\n        ApplicationContext.Context.Value = Context;\n#endif',
 """    protected override void Draw(GameTime gameTime)
     {
 #if ANDROID
