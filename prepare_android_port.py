@@ -186,7 +186,7 @@ input_cs = root / "Intersect.Client.Core" / "MonoGame" / "Input" / "MonoInput.cs
 # Intersect login and registration invoke the inputHandler overload; desktop
 # Steam Deck keyboard is not available on Android.
 replace_once(input_cs,
-    '        if (!Steam.SteamDeck)\\n        {\\n            return;\\n        }',
+    '        if (!Steam.SteamDeck)\n        {\n            return;\n        }',
 """#if ANDROID
         Intersect.Client.Core.AndroidBridge.OpenNativeKeyboard(
             description, text, keyboardType == KeyboardType.Password, maxLength, inputHandler);
