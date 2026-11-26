@@ -4,3 +4,4 @@
 global using Button = Intersect.Client.Framework.Gwen.Control.Button;
 global using CheckBox = Intersect.Client.Framework.Gwen.Control.CheckBox;
 global using Dialog = Intersect.Client.Entities.Events.Dialog;
+global using Resource = Intersect.Client.Entities.Resource;
