@@ -358,8 +358,11 @@ replace_once(renderer, '                currentDisplayBounds.y + (currentDisplay
         mOldDisplayMode""")
 # On narrow/rotated Android surfaces the desktop 800x600 minimum can produce
 # an empty resolution list, then the original renderer indexes [0].
-replace_once(renderer, '        return _validVideoModes;',
-"""#if ANDROID
+replace_once(renderer, '            _validVideoModes.Add(resolution.ToString());\n        }\\n\\n        return _validVideoModes;',
+"""            _validVideoModes.Add(resolution.ToString());
+        }
+
+#if ANDROID
         if (_validVideoModes.Count == 0)
             _validVideoModes.Add("800x480");
 #endif
