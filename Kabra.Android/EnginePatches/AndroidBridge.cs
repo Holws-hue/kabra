@@ -16,6 +16,8 @@ public static class AndroidBridge
     private static AndroidGameActivity? _activity;
     private static Game? _game;
     private static string? _logPath;
+    private static string? _logRoot;
+    private static string? _sessionMarker;
     private static Action<string>? _status;
     private static global::Android.Widget.TextView? _overlayStatus;
 
@@ -23,16 +25,117 @@ public static class AndroidBridge
     public static Action<string>? StageChanged { get; set; }
     public static bool ViewAttached { get; private set; }
 
-    public static void BeginDiagnostics(string writableGameRoot)
+    /// <summary>Register logs without clearing evidence from the previous run.</summary>
+    public static void ConfigureDiagnosticStorage(string root)
     {
-        Directory.CreateDirectory(writableGameRoot);
+        Directory.CreateDirectory(root);
         lock (Sync)
         {
-            _logPath = Path.Combine(writableGameRoot, "kabra_android_boot.log");
-            File.WriteAllText(_logPath,
-                DateTime.UtcNow.ToString("O") + " | KABRA_ANDROID_LOG_STARTED" + Environment.NewLine);
+            _logRoot = root;
+            _logPath = Path.Combine(root, "kabra_android_boot.log");
+            _sessionMarker = Path.Combine(root, "kabra_session_active.flag");
+        }
+    }
+
+    public static string GetDiagnosticReport()
+    {
+        string? root;
+        lock (Sync) root = _logRoot;
+        if (root == null) return "No existe un directorio de registros.";
+        var report = new System.Text.StringBuilder();
+        foreach (var name in new[] {
+            "last_crash.log", "kabra_previous_session.log", "kabra_android_boot.log", "last_exit_unknown.log"
+        })
+        {
+            var path = Path.Combine(root, name);
+            if (!File.Exists(path)) continue;
+            report.AppendLine("---- " + name + " ----");
+            try
+            {
+                report.AppendLine(string.Join(Environment.NewLine, File.ReadLines(path).TakeLast(100)));
+            }
+            catch (Exception ex) { report.AppendLine("READ_ERROR: " + ex.Message); }
+        }
+        if (report.Length == 0)
+            report.AppendLine("Todavia no hay registros. Inicia Kabra al menos una vez.");
+        return report.ToString();
+    }
+
+    public static bool PreviousSessionInterrupted
+    {
+        get
+        {
+            string? root;
+            lock (Sync) root = _logRoot;
+            return root != null && File.Exists(Path.Combine(root, "kabra_session_active.flag"));
+        }
+    }
+
+    /// <summary>
+    /// Save logs before overwriting them. A native SIGSEGV/driver crash may not
+    /// invoke managed exception handlers; preserve the last stage independently.
+    /// An unfinished marker means an unclean exit, not proof of a managed crash.
+    /// </summary>
+    public static void BeginDiagnostics(string writableGameRoot)
+    {
+        ConfigureDiagnosticStorage(writableGameRoot);
+        lock (Sync)
+        {
+            if (_logPath == null || _sessionMarker == null) return;
+            try
+            {
+                if (File.Exists(_logPath))
+                {
+                    File.Copy(_logPath, Path.Combine(writableGameRoot, "kabra_previous_session.log"), true);
+                }
+                if (File.Exists(_sessionMarker))
+                {
+                    File.WriteAllText(Path.Combine(writableGameRoot, "last_exit_unknown.log"),
+                        DateTime.UtcNow.ToString("O") +
+                        " | La ejecucion anterior termino sin cierre confirmado. Posible cierre forzado, " +
+                        "error nativo o proceso eliminado por Android; leer kabra_previous_session.log." +
+                        Environment.NewLine);
+                }
+                File.WriteAllText(_sessionMarker, DateTime.UtcNow.ToString("O"));
+                File.WriteAllText(_logPath,
+                    DateTime.UtcNow.ToString("O") + " | KABRA_ANDROID_LOG_STARTED" + Environment.NewLine);
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Error("KabraBootstrap", "BOOT_HISTORY_WRITE_FAILED: " + ex);
+            }
         }
         global::Android.Util.Log.Info("KabraBootstrap", "KABRA_ANDROID_LOG_STARTED");
+    }
+
+    public static void ReportFatal(string source, Exception exception)
+    {
+        var detail = source + ": " + exception;
+        Persist("FATAL_MANAGED_EXCEPTION: " + detail);
+        string? root;
+        lock (Sync) root = _logRoot;
+        if (root == null) return;
+        try
+        {
+            File.AppendAllText(Path.Combine(root, "last_crash.log"),
+                DateTime.UtcNow.ToString("O") + " | " + detail + Environment.NewLine);
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Error("KabraBootstrap", "CRASH_LOG_FAILED: " + ex);
+        }
+    }
+
+    /// <summary>Mark graceful stop. An unmarked stop leaves the diagnostic marker.</summary>
+    public static void ReportCleanExit()
+    {
+        string? marker;
+        lock (Sync) marker = _sessionMarker;
+        try
+        {
+            if (marker != null && File.Exists(marker)) File.Delete(marker);
+        }
+        catch (Exception ex) { global::Android.Util.Log.Warn("KabraBootstrap", ex.ToString()); }
     }
 
     private static void Persist(string stage)
@@ -101,7 +204,7 @@ public static class AndroidBridge
             }
             catch (Exception ex)
             {
-                Persist("ANDROID_BOOTSTRAP_EXCEPTION: " + ex);
+                ReportFatal("ANDROID_BOOTSTRAP_EXCEPTION", ex);
                 Report("ANDROID_BOOTSTRAP_FAILED: " + ex.GetType().Name + ": " + ex.Message);
                 throw;
             }
@@ -140,7 +243,7 @@ public static class AndroidBridge
             catch (Exception ex)
             {
                 failure = ex;
-                Persist("ANDROID_GAME_UI_EXCEPTION: " + ex);
+                ReportFatal("ANDROID_GAME_UI_EXCEPTION", ex);
             }
             finally
             {
@@ -222,24 +325,7 @@ public static class AndroidBridge
     {
         try
         {
-            string? path;
-            lock (Sync) path = _logPath;
-            var root = path == null ? string.Empty : Path.GetDirectoryName(path) ?? string.Empty;
-            var entries = path != null && File.Exists(path)
-                ? File.ReadLines(path).TakeLast(55).ToList()
-                : new List<string> { "No se encontro kabra_android_boot.log." };
-            var logsDir = Path.Combine(root, "logs");
-            if (Directory.Exists(logsDir))
-            {
-                var latestErrorLog = Directory.GetFiles(logsDir, "errors-*.log")
-                    .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
-                if (latestErrorLog != null)
-                {
-                    entries.Add("---- Intersect errors ----");
-                    entries.AddRange(File.ReadLines(latestErrorLog).TakeLast(25));
-                }
-            }
-            var details = string.Join(Environment.NewLine, entries);
+            var details = GetDiagnosticReport();
             var builder = new global::Android.App.AlertDialog.Builder(activity);
             builder.SetTitle("Kabra Android - registro");
             builder.SetMessage(details);
@@ -363,7 +449,7 @@ public static class AndroidBridge
         while (GameInputQueue.TryDequeue(out var action))
         {
             try { action(); }
-            catch (Exception ex) { Persist("ANDROID_KEYBOARD_INPUT_CALLBACK_FAILED: " + ex); }
+            catch (Exception ex) { ReportFatal("ANDROID_KEYBOARD_INPUT_CALLBACK_FAILED", ex); }
         }
     }
 
