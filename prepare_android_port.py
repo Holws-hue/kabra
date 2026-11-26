@@ -25,6 +25,10 @@ replace_once(proj, '<PackageReference Include="MonoGame.Framework.DesktopGL" Ver
     <PackageReference Include="MonoGame.Framework.Android" Version="3.8.1.303" Condition="'$(KabraAndroidPort)' == 'true'" />""")
 replace_once(proj, '<PackageReference Include="MonoGame.Library.SDL" Version="2.26.5.5" GeneratePathProperty="True" />',
 """<PackageReference Include="MonoGame.Library.SDL" Version="2.26.5.5" GeneratePathProperty="True" Condition="'$(KabraAndroidPort)' != 'true'" />""")
+# DesktopGL brought NVorbis transitively; Android MonoGame doesn't.
+replace_once(proj, '<PackageReference Include="Steamworks.NET" Version="20.1.0" />',
+"""<PackageReference Include="Steamworks.NET" Version="20.1.0" />
+    <PackageReference Include="NVorbis" Version="0.10.5" Condition="'$(KabraAndroidPort)' == 'true'" />""")
 replace_once(proj, '<ItemGroup Label="Package Embedded Resources">', """<ItemGroup Label="Package Embedded Resources" Condition="'$(KabraAndroidPort)' != 'true'">""")
 replace_once(proj, '<EmbeddedResource Include="Resources\\MonoGame.Framework.dll.config" />',
 """<EmbeddedResource Include="Resources\\MonoGame.Framework.dll.config" Condition="'$(KabraAndroidPort)' != 'true'" />""")
@@ -63,6 +67,7 @@ replace_once(input_cs, 'var mouseState = Mouse.GetState();\n\n            if (mo
 for name, dest in [
     ("AndroidBridge.cs", root / "Intersect.Client.Core" / "Core" / "AndroidBridge.cs"),
     ("AndroidTouchInput.cs", root / "Intersect.Client.Core" / "MonoGame" / "Input" / "AndroidTouchInput.cs"),
+    ("AndroidGlobalAliases.cs", root / "Intersect.Client.Core" / "Core" / "AndroidGlobalAliases.cs"),
 ]:
     dest.write_bytes((base / name).read_bytes())
 print("ANDROID_SOURCE_PATCH_APPLIED", root)
