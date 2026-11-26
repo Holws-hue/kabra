@@ -33,6 +33,11 @@ public sealed class MainActivity : AndroidGameActivity
     {
         base.OnCreate(savedInstanceState);
         ShowLanSetup();
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            var detail = args.ExceptionObject?.ToString() ?? "Unknown";
+            global::Android.Util.Log.Error("KabraBoot", "Unhandled: " + detail);
+        };
     }
 
     private void ShowLanSetup()
@@ -93,6 +98,24 @@ public sealed class MainActivity : AndroidGameActivity
         };
         _message.SetTextColor(global::Android.Graphics.Color.White);
         layout.AddView(_message);
+        var diagnostics = new global::Android.Widget.Button(this) { Text = "VER DIAGNOSTICO DE ARRANQUE" };
+        diagnostics.Click += (_, _) =>
+        {
+            var root = Path.Combine(FilesDir?.AbsolutePath ?? string.Empty, "kabra");
+            var log = Path.Combine(root, "kabra_android_boot.log");
+            try
+            {
+                var lines = File.Exists(log)
+                    ? File.ReadLines(log).TakeLast(14)
+                    : new[] { "Sin registro de arranque. Todavia no se intento iniciar Intersect." };
+                ShowStatus(string.Join("\\n", lines));
+            }
+            catch (Exception exception)
+            {
+                ShowStatus("No se pudo leer el diagnostico: " + exception.Message, true);
+            }
+        };
+        layout.AddView(diagnostics);
         SetContentView(scroll);
     }
 
@@ -155,7 +178,12 @@ public sealed class MainActivity : AndroidGameActivity
             ShowStatus($"Recursos listos. Iniciando Intersect en {host}:{port}...");
             // Give Android a UI frame to paint the status before starting MonoGame.
             await Task.Delay(100);
+            Intersect.Client.Core.AndroidBridge.StageChanged = stage =>
+                RunOnUiThread(() => ShowStatus("Arranque Intersect: " + stage));
             Intersect.Client.Core.AndroidBridge.Start(this, root);
+            // Android MonoGame Run returns asynchronously: the game view must remain active.
+            if (!Intersect.Client.Core.AndroidBridge.ViewAttached)
+                throw new InvalidOperationException("KABRA_GAME_VIEW_NOT_ATTACHED; revisa diagnostico de arranque");
         }
         catch (Exception ex)
         {
@@ -224,6 +252,13 @@ public sealed class MainActivity : AndroidGameActivity
             count++;
             progress(count);
         }
+    }
+
+    protected override void OnDestroy()
+    {
+        Intersect.Client.Core.AndroidBridge.StageChanged = null;
+        Intersect.Client.Core.AndroidBridge.Stop();
+        base.OnDestroy();
     }
 
     private static bool IsPrivateIpv4(string text)
