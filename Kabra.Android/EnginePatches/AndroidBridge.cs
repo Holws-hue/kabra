@@ -26,6 +26,13 @@ public static class AndroidBridge
 
     public static Action<string>? StageChanged { get; set; }
     public static bool ViewAttached { get; private set; }
+    private static int _firstUpdateSeen;
+    private static int _firstDrawSeen;
+    private static int _firstRenderSeen;
+    public static bool FirstUpdateSeen => Volatile.Read(ref _firstUpdateSeen) != 0;
+    public static bool FirstDrawSeen => Volatile.Read(ref _firstDrawSeen) != 0;
+    public static bool FirstRenderSeen => Volatile.Read(ref _firstRenderSeen) != 0;
+
 
     /// <summary>Register logs without clearing evidence from the previous run.</summary>
     public static void ConfigureDiagnosticStorage(string root)
@@ -160,6 +167,9 @@ public static class AndroidBridge
 
     public static void Report(string stage)
     {
+        if (stage == "GAME_FIRST_UPDATE") Volatile.Write(ref _firstUpdateSeen, 1);
+        if (stage == "GAME_FIRST_DRAW") Volatile.Write(ref _firstDrawSeen, 1);
+        if (stage == "GAME_FIRST_RENDER_SUCCESS") Volatile.Write(ref _firstRenderSeen, 1);
         Persist(stage);
         AndroidGameActivity? activity;
         global::Android.Widget.TextView? label;
@@ -185,6 +195,9 @@ public static class AndroidBridge
             _activity = activity;
             _status = status;
             _game = null;
+            Volatile.Write(ref _firstUpdateSeen, 0);
+            Volatile.Write(ref _firstDrawSeen, 0);
+            Volatile.Write(ref _firstRenderSeen, 0);
             ViewAttached = false;
         }
         if (_logPath == null) BeginDiagnostics(writableGameRoot);
