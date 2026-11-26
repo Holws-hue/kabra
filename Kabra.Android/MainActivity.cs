@@ -74,8 +74,7 @@ public sealed class MainActivity : AndroidGameActivity
         var button = new global::Android.Widget.Button(this)
         {
             Text = label,
-            TextSize = 13,
-            AllCaps = false
+            TextSize = 13
         };
         button.SetTextColor(global::Android.Graphics.Color.White);
         button.Background = PanelBackground(primary);
@@ -97,9 +96,9 @@ public sealed class MainActivity : AndroidGameActivity
 
         var titleRow = new global::Android.Widget.LinearLayout(this)
         {
-            Orientation = global::Android.Widget.Orientation.Horizontal,
-            Gravity = global::Android.Views.GravityFlags.CenterVertical
+            Orientation = global::Android.Widget.Orientation.Horizontal
         };
+        titleRow.SetGravity(global::Android.Views.GravityFlags.CenterVertical);
         var iconId = Resources?.GetIdentifier("kabra_launcher", "drawable", PackageName) ?? 0;
         if (iconId != 0)
         {
