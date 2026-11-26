@@ -101,6 +101,20 @@ replace_once(game, 'mGraphics = new GraphicsDeviceManager(this)',
         Intersect.Client.Core.AndroidBridge.Report("CREATING_GRAPHICS_MANAGER");
 #endif
         mGraphics = new GraphicsDeviceManager(this)""")
+# Desktop requests MSAA x8; some GLES Android devices don't expose that sample count.
+# Keep Windows rendering untouched and start with supported no-MSAA Android defaults.
+replace_once(game, 'PreferMultiSampling = true,',
+"""#if ANDROID
+            PreferMultiSampling = false,
+#else
+            PreferMultiSampling = true,
+#endif""")
+replace_once(game, 'args.GraphicsDeviceInformation.PresentationParameters.MultiSampleCount = 8;',
+"""#if ANDROID
+            args.GraphicsDeviceInformation.PresentationParameters.MultiSampleCount = 0;
+#else
+            args.GraphicsDeviceInformation.PresentationParameters.MultiSampleCount = 8;
+#endif""")
 replace_once(game, 'Globals.ContentManager = new MonoContentManager();',
 """#if ANDROID
         Intersect.Client.Core.AndroidBridge.Report("CREATING_CONTENT_MANAGER");
