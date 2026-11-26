@@ -106,6 +106,15 @@ replace_once(game, 'Globals.ContentManager = new MonoContentManager();',
         Intersect.Client.Core.AndroidBridge.Report("CREATING_CONTENT_MANAGER");
 #endif
         Globals.ContentManager = new MonoContentManager();""")
+# ClientContext uses AsyncLocal<IApplicationContext>. Android's UI/GL events may
+# run on a different ExecutionContext from the Bootstrapper worker.
+replace_once(game, '        Context = context;\n        PostStartupAction = postStartupAction;',
+"""        Context = context;
+        PostStartupAction = postStartupAction;
+#if ANDROID
+        ApplicationContext.Context.Value = context;
+        Intersect.Client.Core.AndroidBridge.Report("ANDROID_CLIENT_CONTEXT_UI_BOUND");
+#endif""")
 replace_once(game, 'Globals.Database.LoadPreferences();',
 """#if ANDROID
         Intersect.Client.Core.AndroidBridge.Report("LOADING_PREFERENCES");
@@ -115,9 +124,29 @@ replace_once(game, 'protected override void Initialize()\n    {\n        base.In
 """protected override void Initialize()
     {
 #if ANDROID
+        ApplicationContext.Context.Value = Context;
         Intersect.Client.Core.AndroidBridge.Report("GAME_INITIALIZE");
 #endif
         base.Initialize();""")
+# Set per-thread context before UI/GL callbacks, without modifying Windows behavior.
+replace_once(game, '    protected override void Update(GameTime gameTime)\n    {',
+"""    protected override void Update(GameTime gameTime)
+    {
+#if ANDROID
+        ApplicationContext.Context.Value = Context;
+#endif""")
+replace_once(game, '    protected override void Draw(GameTime gameTime)\n    {',
+"""    protected override void Draw(GameTime gameTime)
+    {
+#if ANDROID
+        ApplicationContext.Context.Value = Context;
+#endif""")
+replace_once(game, '    protected override void LoadContent()\n    {',
+"""    protected override void LoadContent()
+    {
+#if ANDROID
+        ApplicationContext.Context.Value = Context;
+#endif""")
 replace_once(game, 'private void IntersectInit()\n    {',
 """private void IntersectInit()
     {
