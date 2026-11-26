@@ -106,9 +106,9 @@ public sealed class MainActivity : AndroidGameActivity
             try
             {
                 var lines = File.Exists(log)
-                    ? File.ReadLines(log).TakeLast(14)
-                    : new[] { "Sin registro de arranque. Todavia no se intento iniciar Intersect." };
-                ShowStatus(string.Join("\\n", lines));
+                    ? File.ReadLines(log).TakeLast(32)
+                    : new[] { "No existe el registro. Primero toca GUARDAR Y ENTRAR A KABRA; si ya lo hiciste, esta compilacion no inicio los diagnosticos." };
+                ShowStatus(string.Join("\n", lines));
             }
             catch (Exception exception)
             {
@@ -160,6 +160,8 @@ public sealed class MainActivity : AndroidGameActivity
         try
         {
             Directory.CreateDirectory(root);
+            Intersect.Client.Core.AndroidBridge.BeginDiagnostics(root);
+            Intersect.Client.Core.AndroidBridge.Report("LAN_SETTINGS_VALIDATED");
             // The old client extracted thousands of large files on the UI thread,
             // giving no feedback and appearing completely unresponsive.
             ShowStatus("Preparando recursos de Kabra. La primera vez puede tardar; no cierres la aplicacion...");
@@ -171,6 +173,7 @@ public sealed class MainActivity : AndroidGameActivity
                         RunOnUiThread(() => ShowStatus($"Preparando archivos del juego: {count} procesados..."));
                 });
                 ConfigureServer(root, host, port);
+                Intersect.Client.Core.AndroidBridge.Report("LAN_RESOURCES_AND_CONFIG_READY");
             });
 
             GetSharedPreferences(PrefsFile, FileCreationMode.Private)?
@@ -191,6 +194,7 @@ public sealed class MainActivity : AndroidGameActivity
         catch (Exception ex)
         {
             global::Android.Util.Log.Error("KabraLAN", ex.ToString());
+            Intersect.Client.Core.AndroidBridge.Report("LAN_START_FAILED: " + ex);
             ShowStatus("No se pudo iniciar Kabra: " + ex.GetType().Name + ": " + ex.Message, true);
             SetBusy(false);
         }
