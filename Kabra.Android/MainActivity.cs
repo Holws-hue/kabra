@@ -180,7 +180,10 @@ public sealed class MainActivity : AndroidGameActivity
             await Task.Delay(100);
             Intersect.Client.Core.AndroidBridge.StageChanged = stage =>
                 RunOnUiThread(() => ShowStatus("Arranque Intersect: " + stage));
-            Intersect.Client.Core.AndroidBridge.Start(this, root);
+            await Intersect.Client.Core.AndroidBridge.StartAsync(
+                this, root,
+                stage => RunOnUiThread(() => ShowStatus("Arranque: " + stage))
+            );
             // Android MonoGame Run returns asynchronously: the game view must remain active.
             if (!Intersect.Client.Core.AndroidBridge.ViewAttached)
                 throw new InvalidOperationException("KABRA_GAME_VIEW_NOT_ATTACHED; revisa diagnostico de arranque");
