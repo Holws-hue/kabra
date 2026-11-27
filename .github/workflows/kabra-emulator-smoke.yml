@@ -1,0 +1,53 @@
+name: Kabra V48 Fix3 Android emulator smoke test
+on:
+  push:
+    branches: [kabra-2d-emulator-smoke-fix3]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  emulator-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get exact signed Fix3 APK from successful build
+        uses: actions/download-artifact@v4
+        with:
+          name: Kabra-Online-2D-V48-LAN-ARM64-SIGNED-TEST
+          run-id: 45936259186
+          github-token: ${{ github.token }}
+          path: apk
+      - name: Verify APK before emulator
+        run: |
+          set -euo pipefail
+          test -s apk/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          unzip -tqq apk/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          mkdir -p smoke-results
+          sha256sum apk/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk | tee smoke-results/apk-sha256.txt
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
+      - name: Install and attempt Android launch, LAN boot, render
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          ram-size: 3072M
+          disk-size: 8192M
+          heap-size: 384M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: bash .github/scripts/kabra-smoke.sh
+      - name: Upload emulator logs, screenshots, and memory snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kabra-V48-Fix3-Android-emulator-smoke-results
+          path: smoke-results/
+          if-no-files-found: warn
