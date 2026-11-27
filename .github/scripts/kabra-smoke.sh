@@ -31,10 +31,22 @@ try:
         adb('input','tap',str(x),str(y))
     print('edit fields',len(edit),'start buttons',len(buttons))
     if len(edit)>=2 and buttons:
-        tap(edit[0]);adb('input','text','10.0.2.2')
-        adb('input','keyevent','4')
-        tap(edit[1]);adb('input','text','5555')
-        adb('input','keyevent','4')
+        import time
+        tap(edit[0]);time.sleep(2)
+        adb('input','text','10.0.2.2');time.sleep(2)
+        # TAB is safer than a tap while Android's IME is animating.
+        adb('input','keyevent','61');time.sleep(2)
+        tap(edit[1]);time.sleep(2)
+        adb('input','text','5555');time.sleep(2)
+        adb('input','keyevent','4');time.sleep(3)
+        # Inspect the real values and refuse to click with invalid form data.
+        adb('uiautomator','dump','/sdcard/kabra_form.xml')
+        subprocess.run(['adb','pull','/sdcard/kabra_form.xml','smoke-results/form-before-start.xml'],capture_output=True)
+        verify=ET.parse('smoke-results/form-before-start.xml').getroot()
+        values=[x.attrib.get('text','') for x in verify.iter('node') if x.attrib.get('class')=='android.widget.EditText']
+        print('FORM_VALUES',values)
+        if not (len(values)>=2 and values[0]=='10.0.2.2' and values[1]=='5555'):
+            raise ValueError('Emulator form automation did not focus the correct fields: '+repr(values))
         tap(buttons[0])
         print('clicked LAN_START')
     else: print('NO_EDIT_FIELDS_OR_START_BUTTON')
