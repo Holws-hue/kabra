@@ -4,10 +4,10 @@
     <OutputType>Exe</OutputType>
     <!-- Separate LAN test package: Android can install it alongside the
          older app signed with a different ephemeral CI certificate. -->
-    <ApplicationId>com.kabra.online2d.lanfix2</ApplicationId>
+    <ApplicationId>com.kabra.online2d.lanfix3</ApplicationId>
     <ApplicationVersion>1</ApplicationVersion>
-    <ApplicationDisplayVersion>0.48.2-shaderfix</ApplicationDisplayVersion>
-    <ApplicationTitle>Kabra 2D ShaderFix</ApplicationTitle>
+    <ApplicationDisplayVersion>0.48.3-shaderfix</ApplicationDisplayVersion>
+    <ApplicationTitle>Kabra 2D V48 Fix3</ApplicationTitle>
     <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
     <AndroidSupportedAbis>arm64-v8a</AndroidSupportedAbis>
     <RuntimeIdentifier>android-arm64</RuntimeIdentifier>

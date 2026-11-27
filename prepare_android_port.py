@@ -61,11 +61,15 @@ replace_once(json_db,
 fs_helper = root / "Framework" / "Intersect.Framework.Core" / "IO" / "Files" / "FileSystemHelper.cs"
 replace_once(fs_helper,
     '        var temporaryDirectoryPath = Path.Combine(Path.GetTempPath(), Assembly.GetEntryAssembly().GetName().Name);',
-"""        if (OperatingSystem.IsAndroid() && stream == null)
-            throw new FileNotFoundException("KABRA_SHADER_RESOURCE_NOT_FOUND: " + name, name);
+"""        if (stream == null)
+            throw new FileNotFoundException("KABRA_EMBEDDED_RESOURCE_MISSING: " + name, name);
+        // Assembly.GetEntryAssembly() is null on .NET Android (native entry point).
+        // Never dereference it directly, on either runtime path.
+        var appName = Assembly.GetEntryAssembly()?.GetName().Name
+            ?? typeof(FileSystemHelper).Assembly.GetName().Name ?? "Intersect";
         var temporaryDirectoryPath = OperatingSystem.IsAndroid()
             ? Path.Combine(Environment.CurrentDirectory, "cache", "shaders")
-            : Path.Combine(Path.GetTempPath(), Assembly.GetEntryAssembly().GetName().Name);""")
+            : Path.Combine(Path.GetTempPath(), appName);""")
 replace_once(fs_helper,
     '        using (var temporaryFileStream = File.OpenWrite(temporaryFilePath))',
 """        using (var temporaryFileStream = OperatingSystem.IsAndroid()
@@ -77,16 +81,26 @@ replace_once(fs_helper,
 shader_loader = root / "Intersect.Client.Core" / "MonoGame" / "File Management" / "MonoContentManager.cs"
 replace_once(shader_loader,
     '            mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));',
-"""#if ANDROID
-            // These embedded XNB effects were built for the original desktop
-            // client. MonoGame GLES may reject them (or its driver can crash
-            // before a managed exception is raised). Lighting code treats a
-            // missing radialgradient shader as optional and skips that effect.
-            Intersect.Client.Core.AndroidBridge.Report(
-                "ANDROID_DESKTOP_SHADER_SKIPPED: " + shaderName);
-#else
-            mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));
-#endif""")
+"""            // Runtime guard, not a compilation-symbol-only guard: client
+            // dependencies may be built for net8.0 without the ANDROID define.
+            // Embedded desktop XNB effects cannot be assumed valid for GLES.
+            if (OperatingSystem.IsAndroid())
+            {
+#if ANDROID
+                Intersect.Client.Core.AndroidBridge.Report(
+                    "ANDROID_DESKTOP_SHADER_SKIPPED: " + shaderName);
+#endif
+                continue;
+            }
+            mShaderDict.Add(shaderName, Core.Graphics.Renderer.LoadShader(resourceFullName));""")
+# Give a missing embedded shader a precise exception instead of a null stream
+# reaching the filesystem helper.
+mono_shader = root / "Intersect.Client.Core" / "MonoGame" / "Graphics" / "MonoShader.cs"
+replace_once(mono_shader,
+    '            var extractedPath = FileSystemHelper.WriteToTemporaryFolder(shaderName, resourceStream);',
+    """            if (resourceStream == null)
+                throw new FileNotFoundException("KABRA_SHADER_NOT_EMBEDDED: " + shaderName, shaderName);
+            var extractedPath = FileSystemHelper.WriteToTemporaryFolder(shaderName, resourceStream);""")
 game = root / "Intersect.Client.Core" / "MonoGame" / "IntersectGame.cs"
 replace_once(game, 'Window.IsBorderless = Context.StartupOptions.BorderlessWindow;',
 """#if !ANDROID
@@ -191,7 +205,9 @@ replace_once(game, 'Globals.Database.LoadPreferences();',
         // Desktop radialgradient shader is deliberately absent on GLES.
         // Disable legacy lighting so the light queue cannot grow endlessly.
         Globals.Database.EnableLighting = false;
-        Intersect.Client.Core.AndroidBridge.Report("ANDROID_LEGACY_LIGHTING_DISABLED");
+        // Cap Android to 30 FPS to avoid unnecessary heat and battery drain.
+        Globals.Database.TargetFps = 1;
+        Intersect.Client.Core.AndroidBridge.Report("ANDROID_LEGACY_LIGHTING_DISABLED_30FPS");
 #endif""")
 replace_once(game, 'protected override void Initialize()\n    {\n        base.Initialize();',
 """protected override void Initialize()

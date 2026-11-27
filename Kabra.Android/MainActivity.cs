@@ -14,7 +14,7 @@ namespace Kabra.Android;
 /// LAN-only pre-login screen. Never contacts a production endpoint.
 /// Assets are extracted asynchronously so users see progress instead of a frozen button.
 /// </summary>
-[Activity(Label = "Kabra 2D ShaderFix", MainLauncher = true,
+[Activity(Label = "Kabra 2D V48 Fix3", MainLauncher = true,
     ScreenOrientation = ScreenOrientation.Landscape,
     ConfigurationChanges = ConfigChanges.Keyboard | ConfigChanges.KeyboardHidden |
                            ConfigChanges.Orientation | ConfigChanges.ScreenSize)]
@@ -137,7 +137,7 @@ public sealed class MainActivity : AndroidGameActivity
         headings.AddView(title);
         var subtitle = new global::Android.Widget.TextView(this)
         {
-            Text = "MODO LAN  |  V48  |  ANDROID ARM64",
+            Text = "MODO LAN | V48 FIX 3 | ANDROID ARM64",
             TextSize = 12
         };
         subtitle.SetTextColor(global::Android.Graphics.Color.LightGray);
@@ -298,6 +298,7 @@ public sealed class MainActivity : AndroidGameActivity
         {
             Directory.CreateDirectory(root);
             Intersect.Client.Core.AndroidBridge.BeginDiagnostics(root);
+            Intersect.Client.Core.AndroidBridge.Report("KABRA_ANDROID_V48_FIX3_SHADER_GUARD_ACTIVE");
             Intersect.Client.Core.AndroidBridge.Report("ANDROID_DEVICE_INFO: " +
                 global::Android.OS.Build.Manufacturer + " " +
                 global::Android.OS.Build.Model + " API=" +

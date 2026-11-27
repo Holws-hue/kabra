@@ -38,6 +38,19 @@ jobs:
           test "$(git -C engine rev-parse HEAD)" = "76885bcd5b12bd47a69aaad44b682fd93957e458"
       - name: Apply Android-only source patches
         run: python3 prepare_android_port.py engine
+      - name: Verify Android shader startup guards in staged source
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          helper = Path("engine/Framework/Intersect.Framework.Core/IO/Files/FileSystemHelper.cs").read_text()
+          shader = Path("engine/Intersect.Client.Core/MonoGame/File Management/MonoContentManager.cs").read_text()
+          assert "Assembly.GetEntryAssembly()?.GetName().Name" in helper
+          assert "KABRA_EMBEDDED_RESOURCE_MISSING" in helper
+          assert "if (OperatingSystem.IsAndroid())" in shader
+          assert "ANDROID_DESKTOP_SHADER_SKIPPED" in shader
+          assert "continue;" in shader
+          print("ANDROID_SHADER_SOURCE_GUARD_VALIDATED")
+          PY
       - name: Verify Windows V48 handshake public key
         run: |
           python3 - <<'PY'
@@ -123,7 +136,7 @@ jobs:
           "$tools_dir/zipalign" -c -v 4 "$apk"
           "$tools_dir/apksigner" verify --verbose --min-sdk-version 26 "$apk"
           "$tools_dir/aapt" dump badging "$apk" | tee dist/kabra-package-info.txt
-          grep -F "package: name='com.kabra.online2d.lanfix2'" dist/kabra-package-info.txt
+          grep -F "package: name='com.kabra.online2d.lanfix3'" dist/kabra-package-info.txt
           grep -F "sdkVersion:'26'" dist/kabra-package-info.txt
           grep -F "native-code: 'arm64-v8a'" dist/kabra-package-info.txt
           echo "APK_INSTALL_PACKAGE_VALIDATED_FOR_ANDROID_8_PLUS"
