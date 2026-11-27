@@ -11,10 +11,10 @@ using Microsoft.Xna.Framework;
 namespace Kabra.Android;
 
 /// <summary>
-/// LAN-only pre-login screen. Never contacts a production endpoint.
+/// Server selection screen supporting LAN IPv4 and public DNS endpoints.
 /// Assets are extracted asynchronously so users see progress instead of a frozen button.
 /// </summary>
-[Activity(Label = "Kabra 2D V48 Fix3", MainLauncher = true,
+[Activity(Label = "Kabra 2D V48 DDNS", MainLauncher = true,
     ScreenOrientation = ScreenOrientation.Landscape,
     ConfigurationChanges = ConfigChanges.Keyboard | ConfigChanges.KeyboardHidden |
                            ConfigChanges.Orientation | ConfigChanges.ScreenSize)]
@@ -137,7 +137,7 @@ public sealed class MainActivity : AndroidGameActivity
         headings.AddView(title);
         var subtitle = new global::Android.Widget.TextView(this)
         {
-            Text = "MODO LAN | V48 FIX 3 | ANDROID ARM64",
+            Text = "SERVIDOR DDNS | V48 FIX 4 | ANDROID ARM64",
             TextSize = 12
         };
         subtitle.SetTextColor(global::Android.Graphics.Color.LightGray);
@@ -147,7 +147,7 @@ public sealed class MainActivity : AndroidGameActivity
 
         var help = new global::Android.Widget.TextView(this)
         {
-            Text = "PC y celular en el mismo Wi-Fi. Usa la IPv4 de tu PC y el puerto UDP de la copia V48.",
+            Text = "Servidor preconfigurado: 523.ddns.net:19547. Podes cambiar la direccion y el puerto si lo necesitas.",
             TextSize = 13
         };
         help.SetTextColor(global::Android.Graphics.Color.LightGray);
@@ -160,9 +160,9 @@ public sealed class MainActivity : AndroidGameActivity
         };
         _host = new global::Android.Widget.EditText(this)
         {
-            Hint = "IP de la PC: 192.168.1.15",
-            Text = prefs?.GetString("host", string.Empty) ?? string.Empty,
-            InputType = global::Android.Text.InputTypes.ClassPhone,
+            Hint = "IP o dominio del servidor",
+            Text = prefs?.GetString("host", "523.ddns.net") ?? "523.ddns.net",
+            InputType = global::Android.Text.InputTypes.ClassText,
             TextSize = 17
         };
         _host.SetSingleLine(true);
@@ -173,7 +173,7 @@ public sealed class MainActivity : AndroidGameActivity
         _port = new global::Android.Widget.EditText(this)
         {
             Hint = "Puerto UDP",
-            Text = prefs?.GetString("port", string.Empty) ?? string.Empty,
+            Text = prefs?.GetString("port", "19547") ?? "19547",
             InputType = global::Android.Text.InputTypes.ClassNumber,
             TextSize = 17
         };
@@ -193,7 +193,7 @@ public sealed class MainActivity : AndroidGameActivity
         _safeGraphics.SetTextColor(global::Android.Graphics.Color.Rgb(245, 213, 153));
         layout.AddView(_safeGraphics);
 
-        _launch = StyledButton("INICIAR KABRA EN LAN", true);
+        _launch = StyledButton("INICIAR KABRA ONLINE", true);
         _launch.Click += async (_, _) => await StartLanClientAsync();
         layout.AddView(_launch, new global::Android.Widget.LinearLayout.LayoutParams(
             global::Android.Views.ViewGroup.LayoutParams.MatchParent, Dp(45)));
@@ -209,7 +209,7 @@ public sealed class MainActivity : AndroidGameActivity
         {
             Text = Intersect.Client.Core.AndroidBridge.PreviousSessionInterrupted
                 ? "La sesion anterior no finalizo normalmente. Usa VER REGISTROS para revisar el ultimo paso."
-                : "Preparado para conectar a la copia V48 por LAN.",
+                : "Listo para iniciar Kabra Online en 523.ddns.net:19547.",
             TextSize = 12
         };
         _message.SetTextColor(global::Android.Graphics.Color.White);
@@ -280,14 +280,14 @@ public sealed class MainActivity : AndroidGameActivity
         if (_busy) return;
         var host = _host?.Text?.Trim() ?? string.Empty;
         var portText = _port?.Text?.Trim() ?? string.Empty;
-        if (!IsPrivateIpv4(host))
+        if (!IsValidServerHost(host))
         {
-            ShowStatus("IPv4 no valida. Debe ser privada, por ejemplo 192.168.1.15 (no uses 127.0.0.1).", true);
+            ShowStatus("Servidor invalido. Usa una IPv4 o dominio valido, por ejemplo 523.ddns.net.", true);
             return;
         }
         if (!ushort.TryParse(portText, out var port) || port == 0)
         {
-            ShowStatus("Falta el puerto UDP de la copia V48. Escribi un numero entre 1 y 65535.", true);
+            ShowStatus("Puerto invalido. Escribi un numero entre 1 y 65535.", true);
             return;
         }
 
@@ -299,11 +299,12 @@ public sealed class MainActivity : AndroidGameActivity
             Directory.CreateDirectory(root);
             Intersect.Client.Core.AndroidBridge.BeginDiagnostics(root);
             Intersect.Client.Core.AndroidBridge.Report("KABRA_ANDROID_V48_FIX3_SHADER_GUARD_ACTIVE");
+            Intersect.Client.Core.AndroidBridge.Report("KABRA_ANDROID_V48_FIX4_DDNS_PRESET_ACTIVE");
             Intersect.Client.Core.AndroidBridge.Report("ANDROID_DEVICE_INFO: " +
                 global::Android.OS.Build.Manufacturer + " " +
                 global::Android.OS.Build.Model + " API=" +
                 global::Android.OS.Build.VERSION.SdkInt);
-            Intersect.Client.Core.AndroidBridge.Report("LAN_SETTINGS_VALIDATED");
+            Intersect.Client.Core.AndroidBridge.Report("SERVER_SETTINGS_VALIDATED");
             // The old client extracted thousands of large files on the UI thread,
             // giving no feedback and appearing completely unresponsive.
             ShowStatus("Preparando recursos de Kabra. La primera vez puede tardar; no cierres la aplicacion...");
@@ -315,7 +316,7 @@ public sealed class MainActivity : AndroidGameActivity
                         RunOnUiThread(() => ShowStatus($"Preparando archivos del juego: {count} procesados..."));
                 });
                 ConfigureServer(root, host, port);
-                Intersect.Client.Core.AndroidBridge.Report("LAN_RESOURCES_AND_CONFIG_READY");
+                Intersect.Client.Core.AndroidBridge.Report("SERVER_RESOURCES_AND_CONFIG_READY");
             });
 
             var safeGraphics = _safeGraphics?.Checked ?? true;
@@ -348,7 +349,7 @@ public sealed class MainActivity : AndroidGameActivity
         catch (Exception ex)
         {
             global::Android.Util.Log.Error("KabraLAN", ex.ToString());
-            Intersect.Client.Core.AndroidBridge.ReportFatal("LAN_START_FAILED", ex);
+            Intersect.Client.Core.AndroidBridge.ReportFatal("SERVER_START_FAILED", ex);
             ShowStatus("No se pudo iniciar Kabra: " + ex.GetType().Name + ": " + ex.Message, true);
             SetBusy(false);
         }
@@ -463,16 +464,16 @@ public sealed class MainActivity : AndroidGameActivity
         base.OnDestroy();
     }
 
-    private static bool IsPrivateIpv4(string text)
+    // Accept valid public DNS hostnames as well as IPv4 addresses. The original
+    // LAN-only guard rejected every DNS name and blocked DDNS connection.
+    private static bool IsValidServerHost(string text)
     {
-        if (!IPAddress.TryParse(text, out var ip) ||
-            ip.AddressFamily != AddressFamily.InterNetwork ||
-            !string.Equals(ip.ToString(), text, StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(text) || text.Length > 253 ||
+            text.Contains('/') || text.Contains(':') || text.Contains(' '))
             return false;
-        var b = ip.GetAddressBytes();
-        if (b[3] == 0 || b[3] == 255) return false;
-        return b[0] == 10 ||
-            (b[0] == 172 && b[1] >= 16 && b[1] <= 31) ||
-            (b[0] == 192 && b[1] == 168);
+        if (IPAddress.TryParse(text, out var ip))
+            return ip.AddressFamily == AddressFamily.InterNetwork &&
+                   !IPAddress.IsLoopback(ip) && !ip.Equals(IPAddress.Any);
+        return Uri.CheckHostName(text) == UriHostNameType.Dns;
     }
 }

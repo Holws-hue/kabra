@@ -63,7 +63,7 @@ jobs:
           pathlib.Path("Kabra.Android/Keys/network.handshake.bkey.pub").write_bytes(data)
           print("V48 public key verified:",actual)
           PY
-      - name: Stage real Kabra resources with test-only network config
+      - name: Stage real Kabra resources with preconfigured DDNS server
         run: |
           test -f resources/config.json
           mkdir -p Kabra.Android/Assets/resources
@@ -73,11 +73,11 @@ jobs:
           from pathlib import Path
           p = Path("Kabra.Android/Assets/resources/config.json")
           obj = json.loads(p.read_text(encoding="utf-8-sig"))
-          obj["Host"] = ""
-          obj["Port"] = 0
+          obj["Host"] = "523.ddns.net"
+          obj["Port"] = 19547
           obj["UpdateUrl"] = ""
           p.write_text(json.dumps(obj, ensure_ascii=False, indent=2), encoding="utf-8")
-          print("No endpoint embedded. LAN screen requires private IPv4 and UDP port before starting Intersect.")
+          print("DDNS endpoint configured: 523.ddns.net:19547 (editable on pre-launch screen).")
           PY
       - name: Verify pinned SDK before restore
         run: |
@@ -119,31 +119,31 @@ jobs:
             printf '%s\\n' "${valid[@]}"
             exit 1
           fi
-          cp "${valid[0]}" dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
-          "$apktool" verify --verbose --print-certs dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
-          echo "SIGNED_APK_BYTES=$(stat -c%s dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk)"
-          sha256sum dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          cp "${valid[0]}" dist/Kabra_Online_2D_V48_DDNS_ARM64.apk
+          "$apktool" verify --verbose --print-certs dist/Kabra_Online_2D_V48_DDNS_ARM64.apk
+          echo "SIGNED_APK_BYTES=$(stat -c%s dist/Kabra_Online_2D_V48_DDNS_ARM64.apk)"
+          sha256sum dist/Kabra_Online_2D_V48_DDNS_ARM64.apk
           echo "ARCH_COUNT=$(find dist -type f -name '*.apk' | wc -l)"
           test "$(find dist -type f -name '*.apk' | wc -l)" -eq 1
       - name: Verify APK can be parsed by Android package tools
         shell: bash
         run: |
           set -euo pipefail
-          apk="dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk"
+          apk="dist/Kabra_Online_2D_V48_DDNS_ARM64.apk"
           test -s "$apk"
           unzip -tqq "$apk"
           tools_dir="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
           "$tools_dir/zipalign" -c -v 4 "$apk"
           "$tools_dir/apksigner" verify --verbose --min-sdk-version 26 "$apk"
           "$tools_dir/aapt" dump badging "$apk" | tee dist/kabra-package-info.txt
-          grep -F "package: name='com.kabra.online2d.lanfix3'" dist/kabra-package-info.txt
+          grep -F "package: name='com.kabra.online2d.ddnsfix4'" dist/kabra-package-info.txt
           grep -F "sdkVersion:'26'" dist/kabra-package-info.txt
           grep -F "native-code: 'arm64-v8a'" dist/kabra-package-info.txt
-          echo "APK_INSTALL_PACKAGE_VALIDATED_FOR_ANDROID_8_PLUS"
+          echo "APK_DDNS_PACKAGE_VALIDATED_FOR_ANDROID_8_PLUS"
       - name: Upload ONLY verified ARM64 signed test APK
         uses: actions/upload-artifact@v4
         with:
-          name: Kabra-Online-2D-V48-LAN-ARM64-SIGNED-TEST
-          path: dist/Kabra_Online_2D_V48_LAN_ARM64_TEST.apk
+          name: Kabra-Online-2D-V48-DDNS-ARM64-SIGNED
+          path: dist/Kabra_Online_2D_V48_DDNS_ARM64.apk
           compression-level: 0
           if-no-files-found: error
