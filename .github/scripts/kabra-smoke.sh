@@ -32,6 +32,7 @@ try:
     print('edit fields',len(edit),'start buttons',len(buttons))
     if len(edit)>=2 and buttons:
         tap(edit[0]);adb('input','text','10.0.2.2')
+        adb('input','keyevent','4')
         tap(edit[1]);adb('input','text','5555')
         adb('input','keyevent','4')
         tap(buttons[0])
@@ -39,7 +40,7 @@ try:
     else: print('NO_EDIT_FIELDS_OR_START_BUTTON')
 except Exception as ex: print('UI_AUTOMATION_ERROR',repr(ex))
 PY
-sleep 45
+sleep 110
 adb exec-out screencap -p > smoke-results/02-after-launch.png || true
 adb shell uiautomator dump /sdcard/kabra_ui.xml || true
 adb pull /sdcard/kabra_ui.xml smoke-results/02-ui.xml || true
@@ -55,3 +56,7 @@ else
   echo 'NO_FIX3_BOOT_MARKER_OR_RENDER' | tee -a smoke-results/report.txt
 fi
 grep -E 'SHADER|EXCEPTION|GAME_FIRST_RENDER_SUCCESS|FIRST_DRAW|INTERSECT_INITIALIZED|ANDROID_DESKTOP_SHADER_SKIPPED' smoke-results/02-kabra-logcat.txt | tail -n 40 | tee -a smoke-results/report.txt || true
+if ! grep -q 'GAME_FIRST_RENDER_SUCCESS' smoke-results/02-kabra-logcat.txt; then
+  echo "SMOKE_TEST_FAILED_FIRST_RENDER_NOT_OBSERVED" | tee -a smoke-results/report.txt
+  exit 1
+fi
